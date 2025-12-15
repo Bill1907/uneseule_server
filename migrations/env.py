@@ -1,9 +1,16 @@
 from logging.config import fileConfig
+import os
+from pathlib import Path
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+
+# Force load .env file before importing settings
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
 
 # Import application settings and models
 from app.core.config import settings
