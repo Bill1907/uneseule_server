@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str
     ELEVENLABS_BASE_URL: str = "https://api.elevenlabs.io/v1"
     ELEVENLABS_VOICE_ID: str  # Default voice for toys
+    ELEVENLABS_AGENT_ID: str  # Conversational AI Agent ID
 
     # Payment Gateway
     PAYMENT_PROVIDER: Literal["stripe", "toss"] = "stripe"

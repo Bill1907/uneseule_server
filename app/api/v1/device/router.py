@@ -1,13 +1,25 @@
 """
 Device REST API endpoints.
+
 Simple, stateless operations for IoT smart toy devices.
 """
 
-from typing import Any
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.device.auth import verify_device, Device
+from app.api.v1.device.auth import verify_device
+from app.core.dependencies import get_db, get_redis
+from app.models.device import Device
+from app.schemas.device import (
+    DeviceHealthResponse,
+    ErrorResponse,
+    VoiceTokenResponse,
+)
+from app.services.voice_token_service import VoiceTokenService
 
 
 router = APIRouter(prefix="/device", tags=["device"])
@@ -79,34 +91,71 @@ async def unpair_device(device: Device = Depends(verify_device)):
     )
 
 
-@router.post("/token")
-async def get_voice_token(device: Device = Depends(verify_device)):
+@router.post(
+    "/token",
+    response_model=VoiceTokenResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Device not paired"},
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        403: {"model": ErrorResponse, "description": "Subscription inactive"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+        503: {"model": ErrorResponse, "description": "ElevenLabs API error"},
+    },
+)
+async def get_voice_token(
+    device: Device = Depends(verify_device),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
     """
     Get AI voice session token from ElevenLabs.
 
     Requires device authentication (HMAC signature).
 
-    Args:
-        device: Authenticated device from dependency
-
     Returns:
-        Voice session token and context data for AI conversation
+        - signed_url: ElevenLabs WebSocket URL (valid 15 minutes)
+        - conversation_id: Session tracking ID
+        - child_context: Child profile for AI context
+
+    Error codes:
+        - DEVICE_NOT_PAIRED: Device not paired with child
+        - CHILD_NOT_FOUND: Paired child not found
+        - SUBSCRIPTION_NOT_FOUND: Parent subscription not found
+        - SUBSCRIPTION_INACTIVE: Parent subscription inactive
+        - RATE_LIMIT_EXCEEDED: Daily limit exceeded
+        - ELEVENLABS_ERROR: ElevenLabs API failure
     """
-    # TODO: Implement voice token generation
-    # 1. Check subscription limits
-    # 2. Get child profile and personality
-    # 3. Request ElevenLabs session token
-    # 4. Return token + context
-    return JSONResponse(
-        content={
-            "success": False,
-            "message": "Voice token generation not yet implemented",
-        },
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    service = VoiceTokenService(db, redis)
+    result = await service.generate_token(device)
+
+    if not result.success:
+        status_codes = {
+            "DEVICE_NOT_PAIRED": status.HTTP_400_BAD_REQUEST,
+            "CHILD_NOT_FOUND": status.HTTP_400_BAD_REQUEST,
+            "SUBSCRIPTION_NOT_FOUND": status.HTTP_403_FORBIDDEN,
+            "SUBSCRIPTION_INACTIVE": status.HTTP_403_FORBIDDEN,
+            "RATE_LIMIT_EXCEEDED": status.HTTP_429_TOO_MANY_REQUESTS,
+            "ELEVENLABS_ERROR": status.HTTP_503_SERVICE_UNAVAILABLE,
+        }
+        return JSONResponse(
+            status_code=status_codes.get(result.error_code, 500),
+            content={
+                "success": False,
+                "error_code": result.error_code,
+                "message": result.error_message,
+            },
+        )
+
+    return VoiceTokenResponse(
+        success=True,
+        signed_url=result.signed_url,
+        conversation_id=result.conversation_id,
+        expires_in=900,  # 15 minutes
+        child_context=result.child_context,
     )
 
 
-@router.get("/health")
+@router.get("/health", response_model=DeviceHealthResponse)
 async def device_health(device: Device = Depends(verify_device)):
     """
     Device health check endpoint.
@@ -119,11 +168,12 @@ async def device_health(device: Device = Depends(verify_device)):
     Returns:
         Health status and device information
     """
-    # TODO: Implement health check logic
-    return JSONResponse(
-        content={
-            "success": True,
-            "status": "healthy",
-            "message": "Device authenticated successfully",
-        }
+    return DeviceHealthResponse(
+        success=True,
+        status="healthy",
+        device_id=str(device.id),
+        child_id=str(device.child_id) if device.child_id else None,
+        battery_level=device.battery_level,
+        connection_status=device.connection_status,
+        server_time=datetime.utcnow(),
     )

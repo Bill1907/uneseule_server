@@ -1,33 +1,19 @@
 """
 Device authentication using HMAC-SHA256 signatures.
+
 Devices authenticate with serial number + signature instead of JWT.
 """
 
 import hashlib
 import hmac
 import time
-from typing import Optional, Any
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# TODO: Import Device model when implemented
-# from app.models.device import Device
-Device = Any  # Temporary type alias
-
-
-# TODO: Implement device secret retrieval from database
-def get_device_secret(serial_number: str) -> Optional[str]:
-    """
-    Retrieve device secret key from database.
-
-    Args:
-        serial_number: Device serial number
-
-    Returns:
-        Device secret key or None if not found
-    """
-    # Placeholder - should query database
-    return None
+from app.core.dependencies import get_db
+from app.models.device import Device
+from app.repositories.device_repository import DeviceRepository
 
 
 def verify_device_signature(
@@ -60,27 +46,32 @@ def verify_device_signature(
         return False
 
     # Compute expected signature
+    # Message format: "{serial}{timestamp}{body}"
     message = f"{serial}{timestamp}{body.decode('utf-8')}".encode()
     expected_signature = hmac.new(
         secret.encode(), message, hashlib.sha256
     ).hexdigest()
 
-    # Constant-time comparison
+    # Constant-time comparison to prevent timing attacks
     return hmac.compare_digest(signature, expected_signature)
 
 
 async def verify_device(
+    request: Request,
     x_device_serial: str = Header(..., description="Device serial number"),
     x_device_signature: str = Header(..., description="HMAC-SHA256 signature"),
     x_device_timestamp: str = Header(..., description="Request timestamp"),
+    db: AsyncSession = Depends(get_db),
 ) -> Device:
     """
     FastAPI dependency to verify device authentication.
 
     Args:
+        request: FastAPI request object (for body access)
         x_device_serial: Device serial number from header
         x_device_signature: HMAC signature from header
         x_device_timestamp: Request timestamp from header
+        db: Database session
 
     Returns:
         Authenticated Device object
@@ -88,30 +79,39 @@ async def verify_device(
     Raises:
         HTTPException: If authentication fails
     """
-    # TODO: Retrieve device and secret from database
-    secret = get_device_secret(x_device_serial)
+    # Get request body for signature verification
+    body = await request.body()
 
-    if not secret:
+    # Retrieve device from database
+    device_repo = DeviceRepository(db)
+    device = await device_repo.get_by_serial_number(
+        x_device_serial,
+        include_child=True,
+    )
+
+    if not device:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid device serial number",
         )
 
-    # TODO: Get request body for signature verification
-    # This is a placeholder - actual implementation needs request body
-    body = b""
+    if not device.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Device is deactivated",
+        )
 
+    # Verify HMAC signature
     if not verify_device_signature(
-        x_device_serial, x_device_signature, x_device_timestamp, body, secret
+        x_device_serial,
+        x_device_signature,
+        x_device_timestamp,
+        body,
+        device.device_secret,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid device signature",
         )
 
-    # TODO: Return actual device from database
-    # This is a placeholder
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Device authentication not fully implemented",
-    )
+    return device
