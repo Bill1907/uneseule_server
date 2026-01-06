@@ -25,53 +25,37 @@ AI Voice Agent Backend for Smart Toy (애착인형) System. FastAPI 기반의 �
 새 기능 개발 전 먼저 테스트 시나리오를 정의합니다:
 
 ```python
-# 예시: 디바이스 토큰 발급 기능
 """
-테스트 시나리오:
+테스트 시나리오 예시 (디바이스 토큰 발급):
 1. 정상 케이스: 유효한 디바이스가 토큰 발급 성공
 2. 실패 케이스: 미등록 디바이스 → 401 에러
 3. 실패 케이스: 페어링 안된 디바이스 → 403 에러
-4. 실패 케이스: 만료된 구독 → 403 에러
-5. 경계 케이스: Rate limit 초과 → 429 에러
+4. 경계 케이스: Rate limit 초과 → 429 에러
 """
 ```
 
 ### 2단계: 테스트 코드 작성
 
-```bash
-# 테스트 파일 위치
+```
 tests/
-├── unit/           # 단위 테스트 (서비스, 유틸리티)
-├── integration/    # 통합 테스트 (리포지토리, DB)
-└── e2e/            # API 엔드포인트 테스트
+├── conftest.py         # 공유 fixtures (mock_db_session, mock_redis_client)
+├── unit/               # 단위 테스트 (서비스, 유틸리티)
+├── integration/        # 통합 테스트 (리포지토리, DB)
+└── e2e/                # API 엔드포인트 테스트
 ```
 
-### 3단계: 테스트 실행 및 확인
+### 3~6단계: 테스트 실행 → 구현 → 확인 → 리팩토링
 
 ```bash
-# 특정 테스트 파일 실행
+# 특정 테스트 실행
 pytest tests/unit/test_device_auth.py -v
-
-# 특정 테스트 클래스/함수 실행
-pytest tests/unit/test_device_auth.py::TestVerifyDeviceSignature -v
-pytest tests/unit/test_device_auth.py::TestVerifyDeviceSignature::test_valid_signature -v
+pytest tests/unit/test_device_auth.py::TestClass::test_method -v
 
 # 실패한 테스트만 재실행
 pytest --lf -v
 
-# 커버리지 포함
+# 전체 테스트 + 커버리지
 pytest --cov=app --cov-report=term-missing
-```
-
-### 4단계: 구현 후 전체 테스트
-
-```bash
-# 전체 테스트 실행
-pytest
-
-# 특정 디렉토리 테스트
-pytest tests/unit/ -v
-pytest tests/e2e/ -v
 ```
 
 ## Commands
@@ -105,30 +89,86 @@ mypy app/                                  # 타입 체크
 **Clean Architecture + Hybrid API (GraphQL + REST)**
 
 ```
-API Layer
-├── /graphql (Strawberry) → Parent App (모바일/웹)
-├── /api/v1/device (REST) → IoT 디바이스
-└── /webhooks → External events (ElevenLabs, Payment)
-
-Service Layer → Business logic (GraphQL/REST 공유)
-Repository Layer → DB 추상화 (PostgreSQL, MongoDB, Redis)
-Model Layer → SQLAlchemy ORM
+┌─────────────────────────────────────────────────────────────┐
+│                      API Layer                               │
+│  ┌─────────────┬──────────────┬──────────────────────────┐  │
+│  │  GraphQL    │  REST API    │  Webhooks                │  │
+│  │  /graphql   │  /api/v1/    │  /webhooks/elevenlabs    │  │
+│  │  (Parent)   │  (Device)    │  /webhooks/payment       │  │
+│  └─────────────┴──────────────┴──────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│  Service Layer (비즈니스 로직, GraphQL/REST 공유)            │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│  Repository Layer (PostgreSQL, MongoDB, Redis)              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Dual API Strategy
+### API Strategy
 
-- **GraphQL** (`/graphql`): 부모 앱용. 중첩 쿼리, 유연한 필드 선택
-- **REST** (`/api/v1/device`): IoT 디바이스용. HMAC-SHA256 인증
-- **Webhooks**: ElevenLabs 대화 데이터, 결제 이벤트 수신
+| API | 경로 | 용도 | 인증 |
+|-----|------|------|------|
+| GraphQL | `/graphql` | 부모 앱 (모바일/웹) | JWT |
+| REST | `/api/v1/device/*` | IoT 디바이스 | HMAC-SHA256 |
+| Webhook | `/webhooks/*` | 외부 이벤트 수신 | HMAC 서명 |
 
-### Test Structure
+### Layer Responsibilities
+
+- **GraphQL Layer** (`app/graphql/`): Strawberry 스키마, 리졸버, 구독
+- **REST API Layer** (`app/api/v1/`): 디바이스 엔드포인트, 웹훅 핸들러
+- **Service Layer** (`app/services/`): 비즈니스 로직 (API 레이어 공유)
+- **Repository Layer** (`app/repositories/`): DB 추상화, CRUD
+- **Model Layer** (`app/models/`): SQLAlchemy ORM
+
+## Domain Model
 
 ```
-tests/
-├── conftest.py         # 공유 fixtures (mock_db_session, mock_redis_client)
-├── unit/               # 서비스, 유틸리티 테스트
-├── integration/        # DB 연동 테스트
-└── e2e/                # API 엔드포인트 테스트
+User (1) ──┬── (n) Child ──── (1) Device
+           │
+           └── (1) Subscription
+
+Device (1) ──── (n) Conversation (MongoDB)
+```
+
+### Core Entities
+
+- **User**: 부모 계정 (email, password_hash, children)
+- **Child**: 자녀 프로필 (name, birth_date, personality_traits)
+- **Device**: 스마트 토이 (serial_number, battery_level, connection_status)
+- **Subscription**: 구독 (plan_type: free/basic/premium)
+- **Conversation**: 대화 기록 (MongoDB, messages, context)
+
+## Key Patterns
+
+### Device Authentication (HMAC)
+
+```python
+# Request Headers
+X-Device-Serial: ABC123XYZ
+X-Device-Signature: hmac_sha256(serial + timestamp + body, secret)
+X-Device-Timestamp: 1234567890
+
+# 5분 이내 타임스탬프만 허용
+```
+
+### Test Pattern
+
+```python
+class TestFeatureName:
+    @pytest.fixture
+    def setup_data(self):
+        return {...}
+
+    def test_success_case(self, setup_data):
+        result = function_under_test(...)
+        assert result is True
+
+    def test_failure_case(self, setup_data):
+        result = function_under_test(...)
+        assert result is False
 ```
 
 ### Test Fixtures (conftest.py)
@@ -136,50 +176,25 @@ tests/
 ```python
 @pytest.fixture
 def mock_db_session():     # AsyncMock DB 세션
-    ...
 
 @pytest.fixture
 def mock_redis_client():   # AsyncMock Redis 클라이언트
-    ...
 ```
 
-## Key Patterns
+## External Integrations
 
-### Device Authentication (HMAC)
+| 서비스 | 용도 | 파일 |
+|--------|------|------|
+| ElevenLabs | AI 음성 대화 | `app/integrations/elevenlabs.py` |
+| Payment (Stripe/Toss) | 구독 결제 | `app/integrations/payment.py` |
+| MongoDB | 대화 데이터 저장 | `app/integrations/nosql.py` |
 
-```python
-# Headers
-X-Device-Serial: ABC123XYZ
-X-Device-Signature: hmac_sha256(serial + timestamp + body, secret)
-X-Device-Timestamp: 1234567890
+## Environment
+
+테스트: `tests/conftest.py`에서 환경 변수 자동 설정
+실제 환경: `.env` 파일 (`.env.example` 참조)
+
 ```
-
-### Test Pattern Example
-
-```python
-class TestFeatureName:
-    """Feature 테스트 클래스"""
-
-    @pytest.fixture
-    def setup_data(self):
-        """테스트 데이터 준비"""
-        return {...}
-
-    def test_success_case(self, setup_data):
-        """정상 케이스"""
-        result = function_under_test(...)
-        assert result is True
-
-    def test_failure_case(self, setup_data):
-        """실패 케이스"""
-        result = function_under_test(...)
-        assert result is False
+DATABASE_URL, SECRET_KEY, MONGODB_URL
+ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_AGENT_ID
 ```
-
-## Environment Variables
-
-테스트 실행 시 `tests/conftest.py`에서 환경 변수가 자동 설정됩니다:
-- `DATABASE_URL`, `SECRET_KEY`, `MONGODB_URL`
-- `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_AGENT_ID`
-
-실제 환경은 `.env` 파일에서 관리 (`.env.example` 참조).
