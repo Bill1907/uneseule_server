@@ -18,14 +18,13 @@ class ChildContext(BaseModel):
 
 
 class VoiceTokenResponse(BaseModel):
-    """Voice token response with signed URL."""
+    """Voice token response for LiveKit connection."""
 
     success: bool = True
-    signed_url: str = Field(..., description="ElevenLabs signed URL for WebSocket")
-    conversation_id: Optional[str] = Field(
-        None, description="ElevenLabs conversation ID"
-    )
-    expires_in: int = Field(900, description="URL validity in seconds (15 minutes)")
+    token: str = Field(..., description="LiveKit JWT access token")
+    livekit_url: str = Field(..., description="LiveKit Cloud WebSocket URL")
+    room_name: str = Field(..., description="Room name to join")
+    expires_in: int = Field(900, description="Token validity in seconds (15 minutes)")
     child_context: Optional[ChildContext] = None
 
 

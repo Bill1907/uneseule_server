@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.integrations.elevenlabs import ElevenLabsAPIError, SignedUrlResponse
+from app.integrations.livekit import LiveKitTokenError, LiveKitTokenResponse
 from app.services.voice_token_service import VoiceTokenService, TokenResult
 
 
@@ -76,13 +76,14 @@ class TestVoiceTokenService:
         with patch.object(
             service, "_get_subscription", return_value=mock_subscription
         ), patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                return_value=SignedUrlResponse(
-                    signed_url="wss://api.elevenlabs.io/test",
-                    conversation_id="conv-123",
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                return_value=LiveKitTokenResponse(
+                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+                    livekit_url="wss://test.livekit.cloud",
+                    room_name="voice-test-room",
                 )
             )
             mock_get_client.return_value = mock_client
@@ -90,8 +91,9 @@ class TestVoiceTokenService:
             result = await service.generate_token(mock_device)
 
             assert result.success is True
-            assert result.signed_url == "wss://api.elevenlabs.io/test"
-            assert result.conversation_id == "conv-123"
+            assert result.token == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
+            assert result.livekit_url == "wss://test.livekit.cloud"
+            assert result.room_name == "voice-test-room"
             assert result.child_context is not None
             assert result.child_context.child_name == "테스트"
             assert result.child_context.child_age == 5
@@ -209,12 +211,14 @@ class TestVoiceTokenService:
         with patch.object(
             service, "_get_subscription", return_value=mock_subscription
         ), patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                return_value=SignedUrlResponse(
-                    signed_url="wss://api.elevenlabs.io/test",
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                return_value=LiveKitTokenResponse(
+                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+                    livekit_url="wss://test.livekit.cloud",
+                    room_name="voice-test-room",
                 )
             )
             mock_get_client.return_value = mock_client
@@ -224,27 +228,27 @@ class TestVoiceTokenService:
             assert result.success is True
 
     @pytest.mark.asyncio
-    async def test_generate_token_elevenlabs_error(
+    async def test_generate_token_livekit_error(
         self, mock_db, mock_redis, mock_device, mock_subscription
     ):
-        """Test token generation fails when ElevenLabs API fails."""
+        """Test token generation fails when LiveKit API fails."""
         service = VoiceTokenService(mock_db, mock_redis)
 
         with patch.object(
             service, "_get_subscription", return_value=mock_subscription
         ), patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                side_effect=ElevenLabsAPIError(500, "Internal error")
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                side_effect=LiveKitTokenError("Token generation failed")
             )
             mock_get_client.return_value = mock_client
 
             result = await service.generate_token(mock_device)
 
             assert result.success is False
-            assert result.error_code == "ELEVENLABS_ERROR"
+            assert result.error_code == "LIVEKIT_ERROR"
 
     @pytest.mark.asyncio
     async def test_generate_token_without_redis(
@@ -256,12 +260,14 @@ class TestVoiceTokenService:
         with patch.object(
             service, "_get_subscription", return_value=mock_subscription
         ), patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                return_value=SignedUrlResponse(
-                    signed_url="wss://api.elevenlabs.io/test",
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                return_value=LiveKitTokenResponse(
+                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+                    livekit_url="wss://test.livekit.cloud",
+                    room_name="voice-test-room",
                 )
             )
             mock_get_client.return_value = mock_client
@@ -282,12 +288,14 @@ class TestVoiceTokenService:
         with patch.object(
             service, "_get_subscription", return_value=mock_subscription
         ), patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                return_value=SignedUrlResponse(
-                    signed_url="wss://api.elevenlabs.io/test",
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                return_value=LiveKitTokenResponse(
+                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+                    livekit_url="wss://test.livekit.cloud",
+                    room_name="voice-test-room",
                 )
             )
             mock_get_client.return_value = mock_client

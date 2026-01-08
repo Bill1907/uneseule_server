@@ -59,11 +59,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     PASSWORD_BCRYPT_ROUNDS: int = 12
 
-    # ElevenLabs Integration
-    ELEVENLABS_API_KEY: str
-    ELEVENLABS_BASE_URL: str = "https://api.elevenlabs.io/v1"
-    ELEVENLABS_VOICE_ID: str  # Default voice for toys
-    ELEVENLABS_AGENT_ID: str  # Conversational AI Agent ID
+    # LiveKit Integration
+    LIVEKIT_API_KEY: str
+    LIVEKIT_API_SECRET: str
+    LIVEKIT_URL: str = "wss://your-project.livekit.cloud"
+    LIVEKIT_TOKEN_TTL: int = 900  # 15 minutes
 
     # Payment Gateway
     PAYMENT_PROVIDER: Literal["stripe", "toss"] = "stripe"

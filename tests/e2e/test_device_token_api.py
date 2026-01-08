@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.v1.device.router import router
-from app.integrations.elevenlabs import SignedUrlResponse
+from app.integrations.livekit import LiveKitTokenResponse
 
 
 # Create test app
@@ -91,7 +91,7 @@ class TestDeviceTokenEndpoint:
         ), patch(
             "app.api.v1.device.router.get_redis"
         ) as mock_get_redis, patch(
-            "app.services.voice_token_service.get_elevenlabs_client"
+            "app.services.voice_token_service.get_livekit_client"
         ) as mock_get_client:
             # Setup mocks
             mock_repo = AsyncMock()
@@ -106,11 +106,12 @@ class TestDeviceTokenEndpoint:
             mock_redis.expire = AsyncMock()
             mock_get_redis.return_value = mock_redis
 
-            mock_client = AsyncMock()
-            mock_client.get_signed_url = AsyncMock(
-                return_value=SignedUrlResponse(
-                    signed_url="wss://api.elevenlabs.io/v1/convai/test",
-                    conversation_id="conv-abc123",
+            mock_client = MagicMock()
+            mock_client.create_token = MagicMock(
+                return_value=LiveKitTokenResponse(
+                    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+                    livekit_url="wss://test.livekit.cloud",
+                    room_name="voice-test-room",
                 )
             )
             mock_get_client.return_value = mock_client
@@ -129,7 +130,9 @@ class TestDeviceTokenEndpoint:
                 assert response.status_code == 200
                 data = response.json()
                 assert data["success"] is True
-                assert "signed_url" in data
+                assert "token" in data
+                assert "livekit_url" in data
+                assert "room_name" in data
                 assert data["expires_in"] == 900
 
     def test_token_endpoint_invalid_serial(self):

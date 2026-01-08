@@ -99,7 +99,7 @@ async def unpair_device(device: Device = Depends(verify_device)):
         401: {"model": ErrorResponse, "description": "Authentication failed"},
         403: {"model": ErrorResponse, "description": "Subscription inactive"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-        503: {"model": ErrorResponse, "description": "ElevenLabs API error"},
+        503: {"model": ErrorResponse, "description": "LiveKit API error"},
     },
 )
 async def get_voice_token(
@@ -108,13 +108,15 @@ async def get_voice_token(
     redis: Redis = Depends(get_redis),
 ):
     """
-    Get AI voice session token from ElevenLabs.
+    Get AI voice session token from LiveKit Cloud.
 
     Requires device authentication (HMAC signature).
 
     Returns:
-        - signed_url: ElevenLabs WebSocket URL (valid 15 minutes)
-        - conversation_id: Session tracking ID
+        - token: LiveKit JWT access token
+        - livekit_url: LiveKit Cloud WebSocket URL
+        - room_name: Room name to join
+        - expires_in: Token validity in seconds (15 minutes)
         - child_context: Child profile for AI context
 
     Error codes:
@@ -123,7 +125,7 @@ async def get_voice_token(
         - SUBSCRIPTION_NOT_FOUND: Parent subscription not found
         - SUBSCRIPTION_INACTIVE: Parent subscription inactive
         - RATE_LIMIT_EXCEEDED: Daily limit exceeded
-        - ELEVENLABS_ERROR: ElevenLabs API failure
+        - LIVEKIT_ERROR: LiveKit token generation failure
     """
     service = VoiceTokenService(db, redis)
     result = await service.generate_token(device)
@@ -135,7 +137,7 @@ async def get_voice_token(
             "SUBSCRIPTION_NOT_FOUND": status.HTTP_403_FORBIDDEN,
             "SUBSCRIPTION_INACTIVE": status.HTTP_403_FORBIDDEN,
             "RATE_LIMIT_EXCEEDED": status.HTTP_429_TOO_MANY_REQUESTS,
-            "ELEVENLABS_ERROR": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "LIVEKIT_ERROR": status.HTTP_503_SERVICE_UNAVAILABLE,
         }
         return JSONResponse(
             status_code=status_codes.get(result.error_code, 500),
@@ -148,8 +150,9 @@ async def get_voice_token(
 
     return VoiceTokenResponse(
         success=True,
-        signed_url=result.signed_url,
-        conversation_id=result.conversation_id,
+        token=result.token,
+        livekit_url=result.livekit_url,
+        room_name=result.room_name,
         expires_in=900,  # 15 minutes
         child_context=result.child_context,
     )

@@ -1,7 +1,8 @@
 """
-Voice token service for ElevenLabs Conversational AI.
+Voice token service for LiveKit Cloud.
 """
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -11,9 +12,10 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.elevenlabs import (
-    ElevenLabsAPIError,
-    get_elevenlabs_client,
+from app.integrations.livekit import (
+    LiveKitClient,
+    LiveKitTokenError,
+    get_livekit_client,
 )
 from app.models.device import Device
 from app.models.subscription import Subscription
@@ -36,8 +38,9 @@ class TokenResult:
     """Voice token generation result."""
 
     success: bool
-    signed_url: Optional[str] = None
-    conversation_id: Optional[str] = None
+    token: Optional[str] = None
+    livekit_url: Optional[str] = None
+    room_name: Optional[str] = None
     child_context: Optional[ChildContext] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
@@ -45,12 +48,12 @@ class TokenResult:
 
 class VoiceTokenService:
     """
-    Service for generating ElevenLabs voice session tokens.
+    Service for generating LiveKit voice session tokens.
 
     Handles:
     - Device-child pairing validation
     - Subscription tier rate limiting
-    - ElevenLabs signed URL generation
+    - LiveKit token generation
     - Child context preparation
     """
 
@@ -71,7 +74,7 @@ class VoiceTokenService:
             device: Authenticated device
 
         Returns:
-            TokenResult with signed URL or error
+            TokenResult with LiveKit token or error
         """
         # 1. Validate device-child pairing
         if not device.child_id:
@@ -116,19 +119,7 @@ class VoiceTokenService:
                     error_message="Daily API limit exceeded",
                 )
 
-        # 5. Get signed URL from ElevenLabs
-        try:
-            client = get_elevenlabs_client()
-            url_response = await client.get_signed_url()
-        except ElevenLabsAPIError as e:
-            logger.error(f"ElevenLabs API error: {e}")
-            return TokenResult(
-                success=False,
-                error_code="ELEVENLABS_ERROR",
-                error_message="Failed to generate voice session",
-            )
-
-        # 6. Prepare child context
+        # 5. Prepare child context
         personality_traits = child.personality_traits or {}
         child_context = ChildContext(
             child_id=str(child.id),
@@ -136,6 +127,35 @@ class VoiceTokenService:
             child_age=child.age,
             personality_traits=personality_traits.get("traits", []),
         )
+
+        # 6. Generate LiveKit token
+        try:
+            client = get_livekit_client()
+            room_name = LiveKitClient.generate_room_name(
+                str(device.id), str(child.id)
+            )
+
+            # Child context를 metadata로 전달
+            metadata = json.dumps({
+                "child_id": child_context.child_id,
+                "child_name": child_context.child_name,
+                "child_age": child_context.child_age,
+                "personality_traits": child_context.personality_traits,
+            })
+
+            token_response = client.create_token(
+                room_name=room_name,
+                participant_identity=f"device-{device.serial_number}",
+                participant_name=f"Device {device.serial_number}",
+                metadata=metadata,
+            )
+        except LiveKitTokenError as e:
+            logger.error(f"LiveKit token error: {e}")
+            return TokenResult(
+                success=False,
+                error_code="LIVEKIT_ERROR",
+                error_message="Failed to generate voice session",
+            )
 
         # 7. Update device last_seen
         await self.device_repo.update_last_seen(device)
@@ -146,13 +166,14 @@ class VoiceTokenService:
 
         logger.info(
             f"Voice token generated for device {device.serial_number}, "
-            f"child {child.name}"
+            f"child {child.name}, room {room_name}"
         )
 
         return TokenResult(
             success=True,
-            signed_url=url_response.signed_url,
-            conversation_id=url_response.conversation_id,
+            token=token_response.token,
+            livekit_url=token_response.livekit_url,
+            room_name=token_response.room_name,
             child_context=child_context,
         )
 

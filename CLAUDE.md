@@ -93,8 +93,8 @@ mypy app/                                  # 타입 체크
 │                      API Layer                               │
 │  ┌─────────────┬──────────────┬──────────────────────────┐  │
 │  │  GraphQL    │  REST API    │  Webhooks                │  │
-│  │  /graphql   │  /api/v1/    │  /webhooks/elevenlabs    │  │
-│  │  (Parent)   │  (Device)    │  /webhooks/payment       │  │
+│  │  /graphql   │  /api/v1/    │  /webhooks/payment       │  │
+│  │  (Parent)   │  (Device)    │                          │  │
 │  └─────────────┴──────────────┴──────────────────────────┘  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -185,7 +185,7 @@ def mock_redis_client():   # AsyncMock Redis 클라이언트
 
 | 서비스 | 용도 | 파일 |
 |--------|------|------|
-| ElevenLabs | AI 음성 대화 | `app/integrations/elevenlabs.py` |
+| LiveKit Cloud | 실시간 음성/비디오 통신 | `app/integrations/livekit.py` |
 | Payment (Stripe/Toss) | 구독 결제 | `app/integrations/payment.py` |
 | MongoDB | 대화 데이터 저장 | `app/integrations/nosql.py` |
 
@@ -196,5 +196,5 @@ def mock_redis_client():   # AsyncMock Redis 클라이언트
 
 ```
 DATABASE_URL, SECRET_KEY, MONGODB_URL
-ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_AGENT_ID
+LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL
 ```

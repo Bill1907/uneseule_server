@@ -12,9 +12,10 @@ import pytest
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
 os.environ.setdefault("MONGODB_URL", "mongodb://localhost:27017")
-os.environ.setdefault("ELEVENLABS_API_KEY", "test-elevenlabs-api-key")
-os.environ.setdefault("ELEVENLABS_VOICE_ID", "test-voice-id")
-os.environ.setdefault("ELEVENLABS_AGENT_ID", "test-agent-id")
+os.environ.setdefault("LIVEKIT_API_KEY", "test-livekit-api-key")
+os.environ.setdefault("LIVEKIT_API_SECRET", "test-livekit-api-secret")
+os.environ.setdefault("LIVEKIT_URL", "wss://test.livekit.cloud")
+os.environ.setdefault("LIVEKIT_TOKEN_TTL", "900")
 
 
 @pytest.fixture(scope="session")
