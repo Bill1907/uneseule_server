@@ -88,7 +88,7 @@ class Device(Base, TimestampMixin):
         comment="Connection status: online/offline/sleep",
     )
     last_seen = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="Last connection timestamp",
     )
@@ -101,7 +101,7 @@ class Device(Base, TimestampMixin):
         comment="Device activation status",
     )
     paired_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="When device was paired with current child",
     )

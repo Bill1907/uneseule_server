@@ -197,10 +197,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize MongoDB connection
     logger.info("Initializing MongoDB connection...")
     global motor_client
-    motor_client = AsyncIOMotorClient(str(settings.MONGODB_URL))
-
-    # Create MongoDB collections and indexes
-    await create_mongodb_collections_and_indexes()
+    try:
+        motor_client = AsyncIOMotorClient(
+            str(settings.MONGODB_URL),
+            serverSelectionTimeoutMS=5000,  # 5초 타임아웃
+        )
+        # Create MongoDB collections and indexes
+        await create_mongodb_collections_and_indexes()
+    except Exception as e:
+        logger.warning(f"MongoDB connection failed (non-critical): {e}")
+        motor_client = None
 
     # Initialize external integrations
     logger.info("Initializing external integrations...")
@@ -226,7 +232,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Close MongoDB connections
     logger.info("Closing MongoDB connections...")
-    global motor_client
     if motor_client:
         motor_client.close()
         motor_client = None

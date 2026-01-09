@@ -7,13 +7,7 @@ import strawberry
 from strawberry.fastapi import GraphQLRouter
 
 from app.graphql.context import GraphQLContext, get_graphql_context
-
-
-# TODO: Import query, mutation, and subscription classes when implemented
-# from app.graphql.queries.user import UserQueries
-# from app.graphql.queries.child import ChildQueries
-# from app.graphql.mutations.auth import AuthMutations
-# from app.graphql.mutations.user import UserMutations
+from app.graphql.mutations.device import DeviceMutations
 
 
 @strawberry.type
@@ -34,14 +28,9 @@ class Query:
 
 
 @strawberry.type
-class Mutation:
+class Mutation(DeviceMutations):
     """
     Root Mutation type combining all mutation resolvers.
-
-    TODO: Inherit from mutation classes:
-    @strawberry.type
-    class Mutation(AuthMutations, UserMutations, ChildMutations, SubscriptionMutations):
-        pass
     """
 
     @strawberry.mutation

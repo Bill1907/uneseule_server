@@ -2,9 +2,10 @@
 Device REST API endpoints.
 
 Simple, stateless operations for IoT smart toy devices.
+Device registration and pairing are handled via GraphQL (parent app).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
@@ -16,79 +17,54 @@ from app.core.dependencies import get_db, get_redis
 from app.models.device import Device
 from app.schemas.device import (
     DeviceHealthResponse,
+    DeviceUnpairResponse,
     ErrorResponse,
     VoiceTokenResponse,
 )
+from app.services.device_service import DeviceService
 from app.services.voice_token_service import VoiceTokenService
 
 
 router = APIRouter(prefix="/device", tags=["device"])
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register_device():
-    """
-    Register a new device with the system.
-
-    Request body should contain device serial number and initial configuration.
-
-    Returns:
-        Device registration confirmation with device ID and secret key
-    """
-    # TODO: Implement device registration logic
-    return JSONResponse(
-        content={
-            "success": False,
-            "message": "Device registration not yet implemented",
-        },
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    )
+# NOTE: Device registration and pairing are now handled via GraphQL
+# See app/graphql/mutations/device.py - registerDevice mutation
 
 
-@router.post("/pair")
-async def pair_device(device: Device = Depends(verify_device)):
-    """
-    Pair device with a child profile.
-
-    Requires device authentication (HMAC signature).
-
-    Args:
-        device: Authenticated device from dependency
-
-    Returns:
-        Pairing confirmation with child ID
-    """
-    # TODO: Implement device pairing logic
-    return JSONResponse(
-        content={
-            "success": False,
-            "message": "Device pairing not yet implemented",
-        },
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    )
-
-
-@router.delete("/pair")
-async def unpair_device(device: Device = Depends(verify_device)):
+@router.delete(
+    "/pair",
+    response_model=DeviceUnpairResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Device not paired"},
+    },
+)
+async def unpair_device(
+    device: Device = Depends(verify_device),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Unpair device from child profile.
 
     Requires device authentication (HMAC signature).
 
-    Args:
-        device: Authenticated device from dependency
-
     Returns:
-        Unpairing confirmation
+        Confirmation message
     """
-    # TODO: Implement device unpairing logic
-    return JSONResponse(
-        content={
-            "success": False,
-            "message": "Device unpairing not yet implemented",
-        },
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    )
+    service = DeviceService(db)
+    result = await service.unpair(device)
+
+    if not result.success:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "success": False,
+                "error_code": result.error_code,
+                "message": result.error_message,
+            },
+        )
+
+    return DeviceUnpairResponse(success=True)
 
 
 @router.post(
@@ -178,5 +154,5 @@ async def device_health(device: Device = Depends(verify_device)):
         child_id=str(device.child_id) if device.child_id else None,
         battery_level=device.battery_level,
         connection_status=device.connection_status,
-        server_time=datetime.utcnow(),
+        server_time=datetime.now(timezone.utc),
     )

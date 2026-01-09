@@ -47,3 +47,47 @@ class ErrorResponse(BaseModel):
     error_code: str
     message: str
     details: Optional[dict] = None
+
+
+# ===== Device Registration =====
+
+
+class DeviceRegisterRequest(BaseModel):
+    """Device registration request."""
+
+    serial_number: str = Field(..., min_length=1, max_length=100)
+    device_type: str = Field(..., min_length=1, max_length=50)
+    firmware_version: str = Field(..., min_length=1, max_length=20)
+
+
+class DeviceRegisterResponse(BaseModel):
+    """Device registration response."""
+
+    success: bool = True
+    device_id: str
+    device_secret: str = Field(..., description="Store securely, shown only once")
+
+
+# ===== Device Pairing =====
+
+
+class DevicePairRequest(BaseModel):
+    """Device pairing request."""
+
+    pairing_code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class DevicePairResponse(BaseModel):
+    """Device pairing response."""
+
+    success: bool = True
+    child_id: str
+    child_name: str
+    paired_at: datetime
+
+
+class DeviceUnpairResponse(BaseModel):
+    """Device unpairing response."""
+
+    success: bool = True
+    message: str = "Device unpaired successfully"

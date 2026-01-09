@@ -6,13 +6,18 @@ This module provides:
 - TimestampMixin: Adds created_at and updated_at timestamps to models
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 # Declarative base for all ORM models
 Base = declarative_base()
+
+
+def utc_now():
+    """Return current UTC time as timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class TimestampMixin:
@@ -25,15 +30,15 @@ class TimestampMixin:
     """
 
     created_at = Column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utc_now,
         nullable=False,
         comment="Timestamp when the record was created",
     )
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
         nullable=False,
         comment="Timestamp when the record was last updated",
     )

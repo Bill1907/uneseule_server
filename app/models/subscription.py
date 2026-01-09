@@ -5,7 +5,7 @@ Represents user subscription plans and payment information.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -56,13 +56,13 @@ class Subscription(Base, TimestampMixin):
 
     # Subscription timeline
     started_at = Column(
-        DateTime,
-        default=datetime.utcnow,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
         comment="Subscription start date",
     )
     expires_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="Expiration date (null = lifetime/no expiry)",
     )
@@ -138,7 +138,7 @@ class Subscription(Base, TimestampMixin):
         """Check if subscription has expired."""
         if self.expires_at is None:
             return False  # No expiry date = lifetime subscription
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     def __repr__(self) -> str:
         return (

@@ -3,9 +3,11 @@ Base GraphQL types and utilities.
 Common types used across the schema.
 """
 
-import strawberry
 from datetime import datetime
+from enum import Enum
 from typing import Optional
+
+import strawberry
 
 
 @strawberry.type
@@ -68,7 +70,7 @@ class AuthPayload:
 
 # Enums
 @strawberry.enum
-class ConnectionStatus(str):
+class ConnectionStatus(str, Enum):
     """Device connection status."""
 
     ONLINE = "online"
@@ -77,7 +79,7 @@ class ConnectionStatus(str):
 
 
 @strawberry.enum
-class PlanType(str):
+class PlanType(str, Enum):
     """Subscription plan types."""
 
     FREE = "free"
@@ -86,7 +88,7 @@ class PlanType(str):
 
 
 @strawberry.enum
-class SubscriptionStatus(str):
+class SubscriptionStatus(str, Enum):
     """Subscription status."""
 
     ACTIVE = "active"

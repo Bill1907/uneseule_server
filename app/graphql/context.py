@@ -4,34 +4,32 @@ Provides authenticated user and database session to resolvers.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.fastapi import BaseContext
 
-# TODO: Import User model when implemented
-# from app.models.user import User
+from app.core.dependencies import AsyncSessionLocal
+from app.core.security import security
 
 
 @dataclass
-class GraphQLContext:
+class GraphQLContext(BaseContext):
     """
     GraphQL context containing request-specific data.
 
     Attributes:
         request: FastAPI request object
         db: Async database session
-        user: Authenticated user (None if not authenticated)
+        user_id: Authenticated user ID (None if not authenticated)
     """
 
-    request: Request
-    db: AsyncSession
-    user: Optional[Any] = None  # TODO: Change to User when model is implemented
+    db: AsyncSession = None
+    user_id: Optional[str] = None
 
 
-async def get_graphql_context(
-    request: Request,
-) -> GraphQLContext:
+async def get_graphql_context(request: Request) -> GraphQLContext:
     """
     Create GraphQL context from FastAPI request.
 
@@ -39,19 +37,23 @@ async def get_graphql_context(
         request: FastAPI request object
 
     Returns:
-        GraphQLContext instance with user and db session
+        GraphQLContext instance with user_id and db session
     """
-    # TODO: Get database session from dependency
-    # from app.core.dependencies import get_db
-    # db = await get_db()
-    db = None  # type: ignore
+    # Get database session
+    db = AsyncSessionLocal()
 
-    # TODO: Extract user from JWT token in Authorization header
-    # For now, user is None (unauthenticated)
-    user = None
+    # Extract user_id from JWT token
+    user_id = None
+    auth_header = request.headers.get("Authorization")
+
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        payload = security.decode_token(token)
+
+        if payload and security.verify_token_type(payload, "access"):
+            user_id = payload.get("sub")
 
     return GraphQLContext(
-        request=request,
-        db=db,  # type: ignore
-        user=user,
+        db=db,
+        user_id=user_id,
     )

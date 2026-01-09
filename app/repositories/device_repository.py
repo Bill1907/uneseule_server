@@ -2,7 +2,8 @@
 Device repository for database operations.
 """
 
-from datetime import datetime
+import secrets
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -58,6 +59,69 @@ class DeviceRepository:
 
     async def update_last_seen(self, device: Device) -> None:
         """Update device last_seen timestamp and set status to online."""
-        device.last_seen = datetime.utcnow()
+        device.last_seen = datetime.now(timezone.utc)
         device.connection_status = "online"
         await self.db.flush()
+
+    async def exists_by_serial(self, serial_number: str) -> bool:
+        """Check if device with serial number exists."""
+        query = select(Device.id).where(Device.serial_number == serial_number)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none() is not None
+
+    async def create(
+        self,
+        serial_number: str,
+        device_type: str,
+        firmware_version: str,
+    ) -> tuple[Device, str]:
+        """
+        Create new device with generated secret.
+
+        Returns:
+            Tuple of (Device, plain_secret)
+        """
+        device_secret = secrets.token_urlsafe(32)
+
+        device = Device(
+            serial_number=serial_number,
+            device_secret=device_secret,
+            device_type=device_type,
+            firmware_version=firmware_version,
+            is_active=True,
+            connection_status="offline",
+        )
+
+        self.db.add(device)
+        await self.db.flush()
+        await self.db.refresh(device)
+
+        return device, device_secret
+
+    async def pair_with_child(self, device: Device, child_id: UUID) -> Device:
+        """Pair device with a child."""
+        device.child_id = child_id
+        device.paired_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+        # Re-fetch with child relationship loaded
+        query = select(Device).where(Device.id == device.id).options(selectinload(Device.child))
+        result = await self.db.execute(query)
+        return result.scalar_one()
+
+    async def unpair(self, device: Device) -> Device:
+        """Unpair device from child."""
+        device.child_id = None
+        device.paired_at = None
+        await self.db.flush()
+        await self.db.refresh(device)
+        return device
+
+    async def get_by_child_id(self, child_id: UUID) -> Optional[Device]:
+        """Get active device paired with child."""
+        query = select(Device).where(
+            Device.child_id == child_id,
+            Device.is_active == True,
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
