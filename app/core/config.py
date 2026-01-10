@@ -52,12 +52,16 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     MONGODB_DATABASE: str = "uneseule"
 
-    # Security
+    # Security (Legacy - 디바이스 인증용)
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     PASSWORD_BCRYPT_ROUNDS: int = 12
+
+    # Neon Auth (사용자 인증)
+    NEON_AUTH_URL: str  # e.g., https://auth.dark-breeze-92881596.ap-southeast-1.neon.tech
+    NEON_AUTH_JWKS_CACHE_TTL: int = 3600  # 1 hour
 
     # LiveKit Integration
     LIVEKIT_API_KEY: str

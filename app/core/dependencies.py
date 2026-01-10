@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.core.security import security
+from app.core.security import neon_auth, security
 
 # Database engine and session factory
 engine = create_async_engine(
@@ -86,13 +86,13 @@ async def get_current_user_id(
     ],
 ) -> str:
     """
-    Dependency for getting current authenticated user ID from JWT token.
+    Dependency for getting current authenticated user ID from Neon Auth JWT.
 
     Args:
         credentials: HTTP authorization credentials (Bearer token)
 
     Returns:
-        User ID from token payload
+        User ID from Neon Auth token payload
 
     Raises:
         HTTPException: If token is invalid or missing
@@ -112,16 +112,16 @@ async def get_current_user_id(
         )
 
     token = credentials.credentials
-    payload = security.decode_token(token)
+    payload = await neon_auth.verify_token(token)
 
-    if not payload or not security.verify_token_type(payload, "access"):
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = payload.get("sub")
+    user_id = neon_auth.get_user_id_from_payload(payload)
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -139,7 +139,7 @@ async def get_current_user_optional(
     ],
 ) -> str | None:
     """
-    Dependency for optionally getting current user ID.
+    Dependency for optionally getting current user ID from Neon Auth JWT.
     Returns None if no valid token is provided.
 
     Args:
@@ -162,12 +162,12 @@ async def get_current_user_optional(
         return None
 
     token = credentials.credentials
-    payload = security.decode_token(token)
+    payload = await neon_auth.verify_token(token)
 
-    if not payload or not security.verify_token_type(payload, "access"):
+    if not payload:
         return None
 
-    return payload.get("sub")
+    return neon_auth.get_user_id_from_payload(payload)
 
 
 # Type aliases for cleaner dependency injection

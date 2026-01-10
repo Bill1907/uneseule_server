@@ -16,6 +16,7 @@ os.environ.setdefault("LIVEKIT_API_KEY", "test-livekit-api-key")
 os.environ.setdefault("LIVEKIT_API_SECRET", "test-livekit-api-secret")
 os.environ.setdefault("LIVEKIT_URL", "wss://test.livekit.cloud")
 os.environ.setdefault("LIVEKIT_TOKEN_TTL", "900")
+os.environ.setdefault("NEON_AUTH_URL", "https://auth.test-project.ap-southeast-1.neon.tech")
 
 
 @pytest.fixture(scope="session")
