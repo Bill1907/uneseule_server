@@ -8,22 +8,19 @@ from strawberry.fastapi import GraphQLRouter
 
 from app.graphql.context import GraphQLContext, get_graphql_context
 from app.graphql.mutations.device import DeviceMutations
+from app.graphql.queries.device import DeviceQueries
+from app.graphql.queries.user import UserQueries
 
 
 @strawberry.type
-class Query:
+class Query(UserQueries, DeviceQueries):
     """
     Root Query type combining all query resolvers.
-
-    TODO: Inherit from query classes:
-    @strawberry.type
-    class Query(UserQueries, ChildQueries, ConversationQueries, InsightQueries):
-        pass
     """
 
     @strawberry.field
     def hello(self) -> str:
-        """Placeholder query for testing."""
+        """Test query."""
         return "Hello from Uneseule GraphQL API"
 
 
@@ -66,6 +63,7 @@ def create_graphql_router() -> GraphQLRouter:
     """
     return GraphQLRouter(
         schema,
+        path="/",
         context_getter=get_graphql_context,
-        graphiql=True,  # Enable GraphiQL interface in development
+        graphql_ide="graphiql",  # Enable GraphiQL interface
     )
