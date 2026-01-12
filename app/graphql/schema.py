@@ -63,7 +63,7 @@ def create_graphql_router() -> GraphQLRouter:
     """
     return GraphQLRouter(
         schema,
-        path="/",
+        path="",
         context_getter=get_graphql_context,
         graphql_ide="graphiql",  # Enable GraphiQL interface
     )
