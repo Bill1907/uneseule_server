@@ -7,6 +7,7 @@ import strawberry
 from strawberry.fastapi import GraphQLRouter
 
 from app.graphql.context import GraphQLContext, get_graphql_context
+from app.graphql.mutations.child import ChildMutations
 from app.graphql.mutations.device import DeviceMutations
 from app.graphql.queries.device import DeviceQueries
 from app.graphql.queries.user import UserQueries
@@ -25,7 +26,7 @@ class Query(UserQueries, DeviceQueries):
 
 
 @strawberry.type
-class Mutation(DeviceMutations):
+class Mutation(DeviceMutations, ChildMutations):
     """
     Root Mutation type combining all mutation resolvers.
     """
