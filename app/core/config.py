@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     RELOAD: bool = False
 
     # CORS
-    CORS_ORIGINS: str | list[str] = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: str | list[str] = "http://localhost:3000,http://localhost:5173,http://localhost:5174,https://webview.uneseule.me"
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: str | list[str] = "*"
     CORS_ALLOW_HEADERS: str | list[str] = "*"
