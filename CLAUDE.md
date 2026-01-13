@@ -123,6 +123,35 @@ mypy app/                                  # 타입 체크
 - **Repository Layer** (`app/repositories/`): DB 추상화, CRUD
 - **Model Layer** (`app/models/`): SQLAlchemy ORM
 
+## GraphQL Schema 관리
+
+### 스키마 확인 방법
+
+```bash
+# SDL 출력 (전체 스키마 확인)
+python -c "from app.graphql.schema import schema; print(schema.as_str())"
+
+# 또는 서버 실행 후 GraphiQL UI 접속
+# http://localhost:8000/graphql
+```
+
+### Introspection 쿼리 (프론트엔드 디버깅용)
+
+```graphql
+{
+  __schema {
+    mutationType { fields { name } }
+    queryType { fields { name } }
+  }
+}
+```
+
+### 스키마 변경 시 체크리스트
+
+- 서버 재시작 (--reload 사용 시 자동)
+- GraphiQL에서 자동완성 확인
+- 프론트엔드 codegen 재실행 필요
+
 ## Domain Model
 
 ```

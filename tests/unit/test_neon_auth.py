@@ -2,10 +2,10 @@
 Unit tests for Neon Auth JWT verification.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
+import jwt
 import pytest
-from jose import jwt
 
 from app.core.security import JWKSClient, NeonAuthVerifier, get_jwks_client
 
@@ -16,93 +16,26 @@ class TestJWKSClient:
     @pytest.fixture
     def jwks_client(self):
         return JWKSClient(
-            jwks_url="https://auth.test.neon.tech/api/auth/.well-known/jwks",
+            jwks_url="https://auth.test.neon.tech/.well-known/jwks.json",
             cache_ttl=3600,
         )
 
-    @pytest.fixture
-    def mock_jwks_response(self):
-        return {
-            "keys": [
-                {
-                    "kty": "RSA",
-                    "kid": "test-key-id",
-                    "use": "sig",
-                    "alg": "RS256",
-                    "n": "test-modulus",
-                    "e": "AQAB",
-                }
-            ]
-        }
+    def test_jwks_client_initializes_pyjwk_client(self, jwks_client):
+        """JWKS client should initialize PyJWKClient internally."""
+        assert jwks_client._jwk_client is not None
+        assert jwks_client.jwks_url == "https://auth.test.neon.tech/.well-known/jwks.json"
 
-    @pytest.mark.asyncio
-    async def test_get_jwks_fetches_from_url(self, jwks_client, mock_jwks_response):
-        """JWKS client should fetch keys from URL."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_jwks_response
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("app.core.security.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            result = await jwks_client.get_jwks()
-
-            assert result == mock_jwks_response
-
-    @pytest.mark.asyncio
-    async def test_get_jwks_uses_cache(self, jwks_client, mock_jwks_response):
-        """JWKS client should cache results."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_jwks_response
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("app.core.security.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            # First call
-            await jwks_client.get_jwks()
-            # Second call should use cache
-            await jwks_client.get_jwks()
-
-            assert mock_instance.get.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_get_signing_key_returns_key(self, jwks_client, mock_jwks_response):
-        """Should return signing key by kid."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_jwks_response
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("app.core.security.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            result = await jwks_client.get_signing_key("test-key-id")
-
-            assert result["kid"] == "test-key-id"
-
-    @pytest.mark.asyncio
-    async def test_get_signing_key_returns_none_for_unknown_kid(
-        self, jwks_client, mock_jwks_response
-    ):
-        """Should return None for unknown key ID."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_jwks_response
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("app.core.security.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
-            result = await jwks_client.get_signing_key("unknown-key-id")
-
-            assert result is None
+    def test_get_signing_key_delegates_to_pyjwk_client(self, jwks_client):
+        """get_signing_key should delegate to PyJWKClient."""
+        mock_key = MagicMock()
+        with patch.object(
+            jwks_client._jwk_client,
+            "get_signing_key_from_jwt",
+            return_value=mock_key,
+        ) as mock_method:
+            result = jwks_client.get_signing_key("test-token")
+            mock_method.assert_called_once_with("test-token")
+            assert result == mock_key
 
 
 class TestNeonAuthVerifier:
@@ -148,12 +81,18 @@ class TestNeonAuthVerifier:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_verify_token_returns_none_when_no_kid(self, verifier):
-        """Should return None when token has no kid."""
-        # Create a token without kid in header
-        with patch.object(jwt, "get_unverified_header", return_value={}):
-            result = await verifier.verify_token("token-without-kid")
-            assert result is None
+    async def test_verify_token_success(self, verifier, valid_payload):
+        """Should return payload for valid token."""
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = "mock-key"
+
+        mock_jwks_client = MagicMock()
+        mock_jwks_client.get_signing_key.return_value = mock_signing_key
+
+        with patch("app.core.security.get_jwks_client", return_value=mock_jwks_client):
+            with patch.object(jwt, "decode", return_value=valid_payload):
+                result = await verifier.verify_token("valid-token")
+                assert result == valid_payload
 
 
 class TestGetJwksClient:
