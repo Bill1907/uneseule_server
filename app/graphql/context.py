@@ -48,10 +48,13 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
 
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
-        payload = await neon_auth.verify_token(token)
-
-        if payload:
-            user_id = neon_auth.get_user_id_from_payload(payload)
+        try:
+            payload = await neon_auth.verify_token(token)
+            if payload:
+                user_id = neon_auth.get_user_id_from_payload(payload)
+        except Exception:
+            # Token verification failed - treat as unauthenticated
+            pass
 
     return GraphQLContext(
         db=db,
