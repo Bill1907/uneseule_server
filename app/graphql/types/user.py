@@ -14,15 +14,16 @@ if TYPE_CHECKING:
 
 @strawberry.type
 class UserType:
-    """User (parent) account information."""
+    """User (parent) account information.
+
+    Combines data from Neon Auth (id, email, name) and user_profiles (phone).
+    """
 
     id: str
     email: str
-    name: str
+    name: Optional[str] = None
     phone: Optional[str] = None
-    is_active: bool
-    email_verified: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     children: list[Annotated["ChildType", strawberry.lazy("app.graphql.types.child")]]
     subscription: Optional[Annotated["SubscriptionType", strawberry.lazy("app.graphql.types.subscription")]] = None
@@ -35,23 +36,7 @@ class UserType:
 class UpdateMeInput:
     """Input for updating user profile."""
 
-    name: Optional[str] = None
     phone: Optional[str] = None
-
-
-@strawberry.input
-class ChangePasswordInput:
-    """Input for changing password."""
-
-    current_password: str
-    new_password: str
-
-
-@strawberry.input
-class DeactivateAccountInput:
-    """Input for deactivating account."""
-
-    password: str
 
 
 # ===== Payload Types =====
@@ -63,23 +48,5 @@ class UpdateMePayload:
 
     success: bool
     user: Optional[UserType] = None
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-
-
-@strawberry.type
-class ChangePasswordPayload:
-    """Payload for changePassword mutation."""
-
-    success: bool
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-
-
-@strawberry.type
-class DeactivateAccountPayload:
-    """Payload for deactivateAccount mutation."""
-
-    success: bool
     error_code: Optional[str] = None
     error_message: Optional[str] = None

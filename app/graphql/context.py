@@ -22,11 +22,15 @@ class GraphQLContext(BaseContext):
     Attributes:
         request: FastAPI request object
         db: Async database session
-        user_id: Authenticated user ID (None if not authenticated)
+        user_id: Authenticated user ID from Neon Auth (None if not authenticated)
+        user_email: Authenticated user email from Neon Auth JWT
+        user_name: Authenticated user name from Neon Auth JWT (optional)
     """
 
     db: AsyncSession = None
     user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
 
 
 async def get_graphql_context(request: Request) -> GraphQLContext:
@@ -42,8 +46,10 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     # Get database session
     db = AsyncSessionLocal()
 
-    # Extract user_id from Neon Auth JWT token (RS256/JWKS)
+    # Extract user info from Neon Auth JWT token (RS256/JWKS)
     user_id = None
+    user_email = None
+    user_name = None
     auth_header = request.headers.get("Authorization")
 
     if auth_header and auth_header.startswith("Bearer "):
@@ -52,6 +58,8 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
             payload = await neon_auth.verify_token(token)
             if payload:
                 user_id = neon_auth.get_user_id_from_payload(payload)
+                user_email = neon_auth.get_user_email_from_payload(payload)
+                user_name = payload.get("name")
         except Exception:
             # Token verification failed - treat as unauthenticated
             pass
@@ -59,4 +67,6 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     return GraphQLContext(
         db=db,
         user_id=user_id,
+        user_email=user_email,
+        user_name=user_name,
     )

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.child import Child
 from app.repositories.child_repository import ChildRepository
+from app.repositories.user_profile_repository import UserProfileRepository
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class ChildService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.child_repo = ChildRepository(db)
+        self.profile_repo = UserProfileRepository(db)
 
     async def create_child(
         self,
@@ -60,7 +62,10 @@ class ChildService:
                 error_message="Birth date cannot be in the future",
             )
 
-        # 2. Create child
+        # 2. Ensure user_profile exists (auto-create if needed for FK constraint)
+        await self.profile_repo.get_or_create(user_id)
+
+        # 3. Create child
         child = await self.child_repo.create(
             user_id=user_id,
             name=name,

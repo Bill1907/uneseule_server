@@ -17,23 +17,26 @@ from app.graphql.types.subscription import SubscriptionType
 from app.graphql.types.user import UserType
 from app.models.child import Child
 from app.models.subscription import Subscription
-from app.models.user import User
+from app.models.user_profile import UserProfile
+from app.services.user_profile_service import UserProfileService
 
 
-def _convert_user_to_type(user: User) -> UserType:
-    """Convert SQLAlchemy User model to GraphQL UserType."""
-    children = [_convert_child_to_type(child) for child in user.children] if user.children else []
-    subscription = _convert_subscription_to_type(user.subscription) if user.subscription else None
+def _convert_profile_to_user_type(
+    profile: UserProfile,
+    email: str,
+    name: Optional[str] = None,
+) -> UserType:
+    """Convert UserProfile to GraphQL UserType with Neon Auth data."""
+    children = [_convert_child_to_type(child) for child in profile.children] if profile.children else []
+    subscription = _convert_subscription_to_type(profile.subscription) if profile.subscription else None
 
     return UserType(
-        id=str(user.id),
-        email=user.email,
-        name=user.name,
-        phone=user.phone,
-        is_active=user.is_active,
-        email_verified=user.email_verified,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
+        id=str(profile.user_id),
+        email=email,
+        name=name,
+        phone=profile.phone,
+        created_at=profile.created_at,
+        updated_at=profile.updated_at,
         children=children,
         subscription=subscription,
     )
@@ -95,26 +98,35 @@ class UserQueries:
 
     @strawberry.field
     async def me(self, info: Info[GraphQLContext, None]) -> Optional[UserType]:
-        """Get current authenticated user information."""
+        """Get current authenticated user information.
+
+        Combines data from Neon Auth JWT (id, email, name) with
+        user_profiles table (phone, children, subscription).
+        """
         context = info.context
-        if not context.user_id:
+        if not context.user_id or not context.user_email:
             return None
 
-        query = (
-            select(User)
-            .where(User.id == UUID(context.user_id))
-            .options(
-                selectinload(User.children).selectinload(Child.device),
-                selectinload(User.subscription),
-            )
+        user_id = UUID(context.user_id)
+
+        # Get or create user profile (auto-creates on first login)
+        service = UserProfileService(context.db)
+        result = await service.get_or_create_profile(
+            user_id=user_id,
+            include_relations=True,
         )
-        result = await context.db.execute(query)
-        user = result.scalar_one_or_none()
 
-        if not user:
+        if not result.success or not result.profile:
             return None
 
-        return _convert_user_to_type(user)
+        # Commit to persist auto-created profile
+        await context.db.commit()
+
+        return _convert_profile_to_user_type(
+            profile=result.profile,
+            email=context.user_email,
+            name=context.user_name,
+        )
 
     @strawberry.field
     async def my_children(self, info: Info[GraphQLContext, None]) -> list[ChildType]:

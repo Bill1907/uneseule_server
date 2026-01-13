@@ -35,10 +35,10 @@ class Child(Base, TimestampMixin):
     # Foreign keys
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("user_profiles.user_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="Parent account reference",
+        comment="Neon Auth user ID reference",
     )
 
     # Profile fields
@@ -76,8 +76,8 @@ class Child(Base, TimestampMixin):
     )
 
     # Relationships
-    user = relationship(
-        "User",
+    user_profile = relationship(
+        "UserProfile",
         back_populates="children",
     )
     device = relationship(

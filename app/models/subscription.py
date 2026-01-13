@@ -35,11 +35,11 @@ class Subscription(Base, TimestampMixin):
     # Foreign key (unique - one subscription per user)
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("user_profiles.user_id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
         index=True,
-        comment="User account reference (one-to-one)",
+        comment="Neon Auth user ID reference (one-to-one)",
     )
 
     # Subscription details
@@ -89,8 +89,8 @@ class Subscription(Base, TimestampMixin):
     )
 
     # Relationships
-    user = relationship(
-        "User",
+    user_profile = relationship(
+        "UserProfile",
         back_populates="subscription",
     )
 
