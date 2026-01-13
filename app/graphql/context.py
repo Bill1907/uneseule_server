@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.fastapi import BaseContext
 
 from app.core.dependencies import AsyncSessionLocal
-from app.core.security import security
+from app.core.security import neon_auth
 
 
 @dataclass
@@ -42,16 +42,16 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     # Get database session
     db = AsyncSessionLocal()
 
-    # Extract user_id from JWT token
+    # Extract user_id from Neon Auth JWT token (RS256/JWKS)
     user_id = None
     auth_header = request.headers.get("Authorization")
 
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
-        payload = security.decode_token(token)
+        payload = await neon_auth.verify_token(token)
 
-        if payload and security.verify_token_type(payload, "access"):
-            user_id = payload.get("sub")
+        if payload:
+            user_id = neon_auth.get_user_id_from_payload(payload)
 
     return GraphQLContext(
         db=db,

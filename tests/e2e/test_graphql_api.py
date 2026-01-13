@@ -144,11 +144,11 @@ class TestMeQuery:
         user_id = str(mock_user.id)
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
             # Setup JWT verification
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             # Setup DB session
             mock_db = AsyncMock()
@@ -240,10 +240,10 @@ class TestMyChildrenQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -331,10 +331,10 @@ class TestMyDevicesQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -416,10 +416,10 @@ class TestMySubscriptionQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -479,10 +479,10 @@ class TestChildQuery:
         child_id = str(mock_child.id)
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -518,10 +518,10 @@ class TestChildQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.security"
-        ) as mock_security:
-            mock_security.decode_token.return_value = {"sub": user_id}
-            mock_security.verify_token_type.return_value = True
+            "app.graphql.context.neon_auth"
+        ) as mock_neon_auth:
+            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_neon_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
