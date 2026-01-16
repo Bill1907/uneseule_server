@@ -8,6 +8,7 @@ dependencies = [
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
     "bcrypt>=5.0.0",
+    "clerk-backend-api>=4.2.0",
     "fastapi>=0.124.4",
     "greenlet>=3.3.0",
     "httpx>=0.28.1",

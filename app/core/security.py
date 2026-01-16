@@ -3,7 +3,7 @@ Security utilities for authentication and authorization.
 Handles JWT tokens, password hashing, and verification.
 
 Supports:
-- Neon Auth JWT verification (JWKS/EdDSA+RS256) for user authentication
+- Clerk JWT verification (JWKS/RS256) for user authentication
 - Legacy JWT (HS256) for device authentication
 """
 
@@ -21,58 +21,87 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-class JWKSClient:
-    """JWKS client for Neon Auth JWT verification (EdDSA/RS256 지원)."""
+class ClerkJWKSClient:
+    """JWKS client for Clerk JWT verification (RS256)."""
 
     def __init__(self, jwks_url: str, cache_ttl: int = 3600):
         self.jwks_url = jwks_url
         self._jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=cache_ttl)
 
     def get_signing_key(self, token: str):
-        """토큰에서 kid를 추출하고 해당 키 반환."""
+        """Extract kid from token and return corresponding signing key."""
         return self._jwk_client.get_signing_key_from_jwt(token)
 
 
-# Global JWKS client for Neon Auth
-_jwks_client: JWKSClient | None = None
+# Global JWKS client for Clerk
+_clerk_jwks_client: ClerkJWKSClient | None = None
 
 
-def get_jwks_client() -> JWKSClient:
-    """Get or create JWKS client singleton."""
-    global _jwks_client
-    if _jwks_client is None:
-        jwks_url = f"{settings.NEON_AUTH_URL}/.well-known/jwks.json"
-        _jwks_client = JWKSClient(jwks_url, settings.NEON_AUTH_JWKS_CACHE_TTL)
-    return _jwks_client
+def get_clerk_jwks_client() -> ClerkJWKSClient:
+    """Get or create Clerk JWKS client singleton."""
+    global _clerk_jwks_client
+    if _clerk_jwks_client is None:
+        # Clerk JWKS URL format: https://<clerk-frontend-api>/.well-known/jwks.json
+        # The secret key format is sk_test_xxx or sk_live_xxx
+        # Extract the frontend API from secret key pattern or use explicit config
+
+        # Try to get JWKS URL from environment or derive from Clerk domain
+        # For now, we'll use the Clerk SDK to verify tokens
+        jwks_url = getattr(settings, 'CLERK_JWKS_URL', None)
+        if not jwks_url:
+            # Default Clerk JWKS pattern - user should set CLERK_JWKS_URL
+            # Example: https://your-app.clerk.accounts.dev/.well-known/jwks.json
+            raise ValueError(
+                "CLERK_JWKS_URL must be set. "
+                "Get it from Clerk Dashboard > API Keys > JWKS URL"
+            )
+        _clerk_jwks_client = ClerkJWKSClient(jwks_url, cache_ttl=3600)
+    return _clerk_jwks_client
 
 
-class NeonAuthVerifier:
-    """Neon Auth JWT verification utilities."""
+class ClerkAuthVerifier:
+    """Clerk JWT verification utilities."""
 
     @staticmethod
     async def verify_token(token: str) -> dict[str, Any] | None:
         """
-        Verify a Neon Auth JWT token using JWKS.
+        Verify a Clerk JWT token using JWKS.
 
         Args:
-            token: JWT token string from Neon Auth
+            token: JWT token string from Clerk
 
         Returns:
             Decoded token payload or None if invalid
         """
         try:
-            jwks_client = get_jwks_client()
+            jwks_client = get_clerk_jwks_client()
             signing_key = jwks_client.get_signing_key(token)
 
+            # Clerk uses RS256 algorithm
             payload = jwt.decode(
                 token,
                 signing_key.key,
-                algorithms=["EdDSA", "RS256"],  # EdDSA (Ed25519) + RS256 지원
-                options={"verify_aud": False},  # Neon Auth doesn't set audience
+                algorithms=["RS256"],
+                options={
+                    "verify_aud": False,  # Clerk doesn't use aud claim by default
+                },
             )
+
+            # Optionally verify authorized parties (azp claim)
+            authorized_parties = settings.CLERK_AUTHORIZED_PARTIES
+            if authorized_parties:
+                azp = payload.get("azp")
+                if azp and azp not in authorized_parties:
+                    logger.debug(f"Unauthorized party: {azp}")
+                    return None
+
             return payload
         except PyJWTError as e:
             logger.debug(f"Token verification failed: {e}")
+            return None
+        except ValueError as e:
+            # JWKS URL not configured
+            logger.error(f"Clerk configuration error: {e}")
             return None
         except Exception as e:
             logger.warning(f"Unexpected error during token verification: {e}")
@@ -80,17 +109,29 @@ class NeonAuthVerifier:
 
     @staticmethod
     def get_user_id_from_payload(payload: dict[str, Any]) -> str | None:
-        """Extract user ID from Neon Auth JWT payload."""
+        """Extract user ID from Clerk JWT payload (sub claim, e.g., user_xxx)."""
         return payload.get("sub")
 
     @staticmethod
     def get_user_email_from_payload(payload: dict[str, Any]) -> str | None:
-        """Extract user email from Neon Auth JWT payload."""
-        return payload.get("email")
+        """Extract user email from Clerk JWT payload."""
+        # Clerk stores email in different ways depending on session
+        # Check common locations
+        return payload.get("email") or payload.get("primary_email")
+
+    @staticmethod
+    def get_user_name_from_payload(payload: dict[str, Any]) -> str | None:
+        """Extract user name from Clerk JWT payload."""
+        # Clerk may have first_name and last_name or full name
+        first_name = payload.get("first_name", "")
+        last_name = payload.get("last_name", "")
+        if first_name or last_name:
+            return f"{first_name} {last_name}".strip()
+        return payload.get("name")
 
 
-# Global instance for Neon Auth verification
-neon_auth = NeonAuthVerifier()
+# Global instance for Clerk Auth verification
+clerk_auth = ClerkAuthVerifier()
 
 
 class SecurityUtils:

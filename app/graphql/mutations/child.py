@@ -86,7 +86,7 @@ class ChildMutations:
         # 2. Call service
         service = ChildService(context.db)
         result = await service.create_child(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             name=input.name,
             birth_date=input.birth_date,
             gender=input.gender,
@@ -136,7 +136,7 @@ class ChildMutations:
         # 2. Call service
         service = ChildService(context.db)
         result = await service.update_child(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             child_id=UUID(child_id),
             name=input.name,
             birth_date=input.birth_date,
@@ -186,7 +186,7 @@ class ChildMutations:
         # 2. Call service
         service = ChildService(context.db)
         result = await service.delete_child(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             child_id=UUID(child_id),
         )
 

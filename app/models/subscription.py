@@ -34,12 +34,12 @@ class Subscription(Base, TimestampMixin):
 
     # Foreign key (unique - one subscription per user)
     user_id = Column(
-        UUID(as_uuid=True),
+        String(255),
         ForeignKey("user_profiles.user_id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
         index=True,
-        comment="Neon Auth user ID reference (one-to-one)",
+        comment="Clerk user ID reference (one-to-one)",
     )
 
     # Subscription details

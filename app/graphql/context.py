@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.fastapi import BaseContext
 
 from app.core.dependencies import AsyncSessionLocal
-from app.core.security import neon_auth
+from app.core.security import clerk_auth
 
 
 @dataclass
@@ -22,9 +22,9 @@ class GraphQLContext(BaseContext):
     Attributes:
         request: FastAPI request object
         db: Async database session
-        user_id: Authenticated user ID from Neon Auth (None if not authenticated)
-        user_email: Authenticated user email from Neon Auth JWT
-        user_name: Authenticated user name from Neon Auth JWT (optional)
+        user_id: Authenticated user ID from Clerk (None if not authenticated)
+        user_email: Authenticated user email from Clerk JWT
+        user_name: Authenticated user name from Clerk JWT (optional)
     """
 
     db: AsyncSession = None
@@ -46,7 +46,7 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     # Get database session
     db = AsyncSessionLocal()
 
-    # Extract user info from Neon Auth JWT token (RS256/JWKS)
+    # Extract user info from Clerk JWT token (RS256/JWKS)
     user_id = None
     user_email = None
     user_name = None
@@ -55,11 +55,11 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]  # Remove "Bearer " prefix
         try:
-            payload = await neon_auth.verify_token(token)
+            payload = await clerk_auth.verify_token(token)
             if payload:
-                user_id = neon_auth.get_user_id_from_payload(payload)
-                user_email = neon_auth.get_user_email_from_payload(payload)
-                user_name = payload.get("name")
+                user_id = clerk_auth.get_user_id_from_payload(payload)
+                user_email = clerk_auth.get_user_email_from_payload(payload)
+                user_name = clerk_auth.get_user_name_from_payload(payload)
         except Exception:
             # Token verification failed - treat as unauthenticated
             pass

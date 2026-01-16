@@ -26,7 +26,7 @@ def _convert_profile_to_user_type(
     email: str,
     name: Optional[str] = None,
 ) -> UserType:
-    """Convert UserProfile to GraphQL UserType with Neon Auth data."""
+    """Convert UserProfile to GraphQL UserType with Clerk data."""
     children = [_convert_child_to_type(child) for child in profile.children] if profile.children else []
     subscription = _convert_subscription_to_type(profile.subscription) if profile.subscription else None
 
@@ -100,14 +100,14 @@ class UserQueries:
     async def me(self, info: Info[GraphQLContext, None]) -> Optional[UserType]:
         """Get current authenticated user information.
 
-        Combines data from Neon Auth JWT (id, email, name) with
+        Combines data from Clerk JWT (id, email, name) with
         user_profiles table (phone, children, subscription).
         """
         context = info.context
         if not context.user_id or not context.user_email:
             return None
 
-        user_id = UUID(context.user_id)
+        user_id = context.user_id
 
         # Get or create user profile (auto-creates on first login)
         service = UserProfileService(context.db)
@@ -137,7 +137,7 @@ class UserQueries:
 
         query = (
             select(Child)
-            .where(Child.user_id == UUID(context.user_id), Child.is_active == True)
+            .where(Child.user_id == context.user_id, Child.is_active == True)
             .options(selectinload(Child.device))
         )
         result = await context.db.execute(query)
@@ -156,7 +156,7 @@ class UserQueries:
             select(Child)
             .where(
                 Child.id == UUID(id),
-                Child.user_id == UUID(context.user_id),
+                Child.user_id == context.user_id,
             )
             .options(selectinload(Child.device))
         )
@@ -175,7 +175,7 @@ class UserQueries:
         if not context.user_id:
             return None
 
-        query = select(Subscription).where(Subscription.user_id == UUID(context.user_id))
+        query = select(Subscription).where(Subscription.user_id == context.user_id)
         result = await context.db.execute(query)
         subscription = result.scalar_one_or_none()
 

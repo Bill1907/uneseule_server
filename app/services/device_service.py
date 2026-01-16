@@ -225,7 +225,7 @@ class DeviceService:
         return result.scalar_one_or_none()
 
     async def _get_child_with_user(
-        self, child_id: UUID, user_id: UUID
+        self, child_id: UUID, user_id: str
     ) -> Optional[Child]:
         """Get child by ID and verify ownership."""
         query = select(Child).where(
@@ -240,7 +240,7 @@ class DeviceService:
 
     async def register_and_pair(
         self,
-        user_id: UUID,
+        user_id: str,
         serial_number: str,
         device_secret: str,
         device_type: str,
@@ -336,7 +336,7 @@ class DeviceService:
 
     async def unpair_by_id(
         self,
-        user_id: UUID,
+        user_id: str,
         device_id: UUID,
     ) -> UnpairResult:
         """

@@ -12,45 +12,43 @@ from app.graphql.queries.user import (
     UserQueries,
     _convert_child_to_type,
     _convert_subscription_to_type,
-    _convert_user_to_type,
+    _convert_profile_to_user_type,
 )
 from app.graphql.queries.device import DeviceQueries, _convert_device_to_type
 
 
-class TestConvertUserToType:
-    """Tests for _convert_user_to_type function."""
+class TestConvertProfileToUserType:
+    """Tests for _convert_profile_to_user_type function."""
 
     @pytest.fixture
-    def mock_user(self):
-        """Create mock user model."""
-        user = MagicMock()
-        user.id = uuid.uuid4()
-        user.email = "parent@example.com"
-        user.name = "홍길동"
-        user.phone = "010-1234-5678"
-        user.is_active = True
-        user.email_verified = True
-        user.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        user.updated_at = datetime(2024, 6, 1, tzinfo=timezone.utc)
-        user.children = []
-        user.subscription = None
-        return user
+    def mock_profile(self):
+        """Create mock user profile model."""
+        profile = MagicMock()
+        profile.user_id = "user_2NNEqL2nrIRdJ194ndJqAHwEfxC"
+        profile.phone = "010-1234-5678"
+        profile.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        profile.updated_at = datetime(2024, 6, 1, tzinfo=timezone.utc)
+        profile.children = []
+        profile.subscription = None
+        return profile
 
-    def test_convert_user_basic(self, mock_user):
-        """Test basic user conversion."""
-        result = _convert_user_to_type(mock_user)
+    def test_convert_profile_basic(self, mock_profile):
+        """Test basic profile conversion."""
+        result = _convert_profile_to_user_type(
+            profile=mock_profile,
+            email="parent@example.com",
+            name="홍길동",
+        )
 
-        assert result.id == str(mock_user.id)
+        assert result.id == mock_profile.user_id
         assert result.email == "parent@example.com"
         assert result.name == "홍길동"
         assert result.phone == "010-1234-5678"
-        assert result.is_active is True
-        assert result.email_verified is True
         assert result.children == []
         assert result.subscription is None
 
-    def test_convert_user_with_children(self, mock_user):
-        """Test user conversion with children."""
+    def test_convert_profile_with_children(self, mock_profile):
+        """Test profile conversion with children."""
         child = MagicMock()
         child.id = uuid.uuid4()
         child.name = "홍아이"
@@ -62,16 +60,19 @@ class TestConvertUserToType:
         child.updated_at = None
         child.device = None
 
-        mock_user.children = [child]
+        mock_profile.children = [child]
 
-        result = _convert_user_to_type(mock_user)
+        result = _convert_profile_to_user_type(
+            profile=mock_profile,
+            email="parent@example.com",
+        )
 
         assert len(result.children) == 1
         assert result.children[0].name == "홍아이"
         assert result.children[0].age == 4
 
-    def test_convert_user_with_subscription(self, mock_user):
-        """Test user conversion with subscription."""
+    def test_convert_profile_with_subscription(self, mock_profile):
+        """Test profile conversion with subscription."""
         subscription = MagicMock()
         subscription.id = uuid.uuid4()
         subscription.plan_type = "premium"
@@ -83,9 +84,12 @@ class TestConvertUserToType:
         subscription.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
         subscription.updated_at = None
 
-        mock_user.subscription = subscription
+        mock_profile.subscription = subscription
 
-        result = _convert_user_to_type(mock_user)
+        result = _convert_profile_to_user_type(
+            profile=mock_profile,
+            email="parent@example.com",
+        )
 
         assert result.subscription is not None
         assert result.subscription.plan_type.value == "premium"
@@ -199,7 +203,9 @@ class TestUserQueries:
     def mock_context(self, mock_db_session):
         """Create mock GraphQL context."""
         context = MagicMock()
-        context.user_id = str(uuid.uuid4())
+        context.user_id = "user_2NNEqL2nrIRdJ194ndJqAHwEfxC"
+        context.user_email = "test@example.com"
+        context.user_name = "테스트"
         context.db = mock_db_session
         return context
 
@@ -213,35 +219,36 @@ class TestUserQueries:
     @pytest.mark.anyio
     async def test_me_authenticated(self, mock_info, mock_db_session):
         """Test me query with authenticated user."""
-        user_id = uuid.UUID(mock_info.context.user_id)
+        from unittest.mock import AsyncMock
+        from app.services.user_profile_service import UserProfileResult
 
-        mock_user = MagicMock()
-        mock_user.id = user_id
-        mock_user.email = "test@example.com"
-        mock_user.name = "테스트"
-        mock_user.phone = None
-        mock_user.is_active = True
-        mock_user.email_verified = True
-        mock_user.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        mock_user.updated_at = None
-        mock_user.children = []
-        mock_user.subscription = None
+        mock_profile = MagicMock()
+        mock_profile.user_id = "user_2NNEqL2nrIRdJ194ndJqAHwEfxC"
+        mock_profile.phone = None
+        mock_profile.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        mock_profile.updated_at = None
+        mock_profile.children = []
+        mock_profile.subscription = None
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_user
-        mock_db_session.execute.return_value = mock_result
+        mock_result = UserProfileResult(success=True, profile=mock_profile)
 
-        queries = UserQueries()
-        result = await queries.me(mock_info)
+        with patch("app.graphql.queries.user.UserProfileService") as MockService:
+            mock_service_instance = MagicMock()
+            mock_service_instance.get_or_create_profile = AsyncMock(return_value=mock_result)
+            MockService.return_value = mock_service_instance
 
-        assert result is not None
-        assert result.email == "test@example.com"
-        assert result.name == "테스트"
+            queries = UserQueries()
+            result = await queries.me(mock_info)
+
+            assert result is not None
+            assert result.email == "test@example.com"
+            assert result.name == "테스트"
 
     @pytest.mark.anyio
     async def test_me_unauthenticated(self, mock_info):
         """Test me query without authentication."""
         mock_info.context.user_id = None
+        mock_info.context.user_email = None
 
         queries = UserQueries()
         result = await queries.me(mock_info)

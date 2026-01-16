@@ -1,5 +1,5 @@
 """
-Unit tests for Neon Auth JWT verification.
+Unit tests for Clerk JWT verification.
 """
 
 from unittest.mock import MagicMock, patch
@@ -7,23 +7,23 @@ from unittest.mock import MagicMock, patch
 import jwt
 import pytest
 
-from app.core.security import JWKSClient, NeonAuthVerifier, get_jwks_client
+from app.core.security import ClerkJWKSClient, ClerkAuthVerifier, get_clerk_jwks_client
 
 
-class TestJWKSClient:
-    """Tests for JWKS client."""
+class TestClerkJWKSClient:
+    """Tests for Clerk JWKS client."""
 
     @pytest.fixture
     def jwks_client(self):
-        return JWKSClient(
-            jwks_url="https://auth.test.neon.tech/.well-known/jwks.json",
+        return ClerkJWKSClient(
+            jwks_url="https://test.clerk.accounts.dev/.well-known/jwks.json",
             cache_ttl=3600,
         )
 
     def test_jwks_client_initializes_pyjwk_client(self, jwks_client):
         """JWKS client should initialize PyJWKClient internally."""
         assert jwks_client._jwk_client is not None
-        assert jwks_client.jwks_url == "https://auth.test.neon.tech/.well-known/jwks.json"
+        assert jwks_client.jwks_url == "https://test.clerk.accounts.dev/.well-known/jwks.json"
 
     def test_get_signing_key_delegates_to_pyjwk_client(self, jwks_client):
         """get_signing_key should delegate to PyJWKClient."""
@@ -38,26 +38,28 @@ class TestJWKSClient:
             assert result == mock_key
 
 
-class TestNeonAuthVerifier:
-    """Tests for Neon Auth JWT verification."""
+class TestClerkAuthVerifier:
+    """Tests for Clerk JWT verification."""
 
     @pytest.fixture
     def verifier(self):
-        return NeonAuthVerifier()
+        return ClerkAuthVerifier()
 
     @pytest.fixture
     def valid_payload(self):
         return {
-            "sub": "user-123",
+            "sub": "user_2NNEqL2nrIRdJ194ndJqAHwEfxC",
             "email": "test@example.com",
+            "first_name": "Test",
+            "last_name": "User",
             "iat": 1234567890,
             "exp": 9999999999,
         }
 
     def test_get_user_id_from_payload(self, verifier, valid_payload):
-        """Should extract user ID from payload."""
+        """Should extract Clerk user ID from payload."""
         result = verifier.get_user_id_from_payload(valid_payload)
-        assert result == "user-123"
+        assert result == "user_2NNEqL2nrIRdJ194ndJqAHwEfxC"
 
     def test_get_user_id_from_payload_missing_sub(self, verifier):
         """Should return None if sub is missing."""
@@ -74,6 +76,21 @@ class TestNeonAuthVerifier:
         result = verifier.get_user_email_from_payload({})
         assert result is None
 
+    def test_get_user_name_from_payload(self, verifier, valid_payload):
+        """Should extract full name from first_name and last_name."""
+        result = verifier.get_user_name_from_payload(valid_payload)
+        assert result == "Test User"
+
+    def test_get_user_name_from_payload_first_name_only(self, verifier):
+        """Should handle first_name only."""
+        result = verifier.get_user_name_from_payload({"first_name": "Test"})
+        assert result == "Test"
+
+    def test_get_user_name_from_payload_fallback_to_name(self, verifier):
+        """Should fallback to name field if first/last name not present."""
+        result = verifier.get_user_name_from_payload({"name": "Full Name"})
+        assert result == "Full Name"
+
     @pytest.mark.asyncio
     async def test_verify_token_returns_none_for_invalid_token(self, verifier):
         """Should return None for invalid token."""
@@ -89,26 +106,44 @@ class TestNeonAuthVerifier:
         mock_jwks_client = MagicMock()
         mock_jwks_client.get_signing_key.return_value = mock_signing_key
 
-        with patch("app.core.security.get_jwks_client", return_value=mock_jwks_client):
+        with patch("app.core.security.get_clerk_jwks_client", return_value=mock_jwks_client):
             with patch.object(jwt, "decode", return_value=valid_payload):
                 result = await verifier.verify_token("valid-token")
                 assert result == valid_payload
 
+    @pytest.mark.asyncio
+    async def test_verify_token_rejects_unauthorized_party(self, verifier, valid_payload):
+        """Should reject token with unauthorized azp claim."""
+        payload_with_azp = {**valid_payload, "azp": "https://unauthorized.com"}
 
-class TestGetJwksClient:
-    """Tests for JWKS client singleton."""
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = "mock-key"
+
+        mock_jwks_client = MagicMock()
+        mock_jwks_client.get_signing_key.return_value = mock_signing_key
+
+        with patch("app.core.security.get_clerk_jwks_client", return_value=mock_jwks_client):
+            with patch.object(jwt, "decode", return_value=payload_with_azp):
+                with patch("app.core.security.settings") as mock_settings:
+                    mock_settings.CLERK_AUTHORIZED_PARTIES = ["http://localhost:3000"]
+                    result = await verifier.verify_token("valid-token")
+                    assert result is None
+
+
+class TestGetClerkJwksClient:
+    """Tests for Clerk JWKS client singleton."""
 
     def test_returns_same_instance(self):
         """Should return same client instance."""
         # Reset singleton
         import app.core.security as security_module
 
-        security_module._jwks_client = None
+        security_module._clerk_jwks_client = None
 
-        client1 = get_jwks_client()
-        client2 = get_jwks_client()
+        client1 = get_clerk_jwks_client()
+        client2 = get_clerk_jwks_client()
 
         assert client1 is client2
 
         # Cleanup
-        security_module._jwks_client = None
+        security_module._clerk_jwks_client = None

@@ -5,7 +5,6 @@ UserProfile service for business logic.
 import logging
 from dataclasses import dataclass
 from typing import Optional
-from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +33,7 @@ class UserProfileService:
 
     async def get_or_create_profile(
         self,
-        user_id: UUID,
+        user_id: str,
         include_relations: bool = False,
     ) -> UserProfileResult:
         """
@@ -43,7 +42,7 @@ class UserProfileService:
         This is called on first login to auto-create the profile.
 
         Args:
-            user_id: Neon Auth user ID (from JWT sub claim)
+            user_id: Clerk user ID (from JWT sub claim, e.g., user_xxx)
             include_relations: Include children and subscription
 
         Returns:
@@ -60,14 +59,14 @@ class UserProfileService:
 
     async def update_profile(
         self,
-        user_id: UUID,
+        user_id: str,
         phone: Optional[str] = None,
     ) -> UserProfileResult:
         """
         Update user profile information.
 
         Args:
-            user_id: Neon Auth user ID
+            user_id: Clerk user ID (e.g., user_xxx)
             phone: New phone (optional)
 
         Returns:

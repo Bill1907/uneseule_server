@@ -59,9 +59,21 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     PASSWORD_BCRYPT_ROUNDS: int = 12
 
-    # Neon Auth (사용자 인증)
-    NEON_AUTH_URL: str  # e.g., https://auth.dark-breeze-92881596.ap-southeast-1.neon.tech
-    NEON_AUTH_JWKS_CACHE_TTL: int = 3600  # 1 hour
+    # Clerk Auth (사용자 인증)
+    CLERK_SECRET_KEY: str  # sk_test_xxx 또는 sk_live_xxx
+    CLERK_PUBLISHABLE_KEY: str = ""  # pk_test_xxx (프론트엔드용, 백엔드에서는 선택)
+    CLERK_JWKS_URL: str  # https://your-app.clerk.accounts.dev/.well-known/jwks.json
+    CLERK_AUTHORIZED_PARTIES: str | list[str] = ""  # 허용된 프론트엔드 도메인 (콤마 구분)
+
+    @field_validator("CLERK_AUTHORIZED_PARTIES", mode="before")
+    @classmethod
+    def parse_clerk_authorized_parties(cls, v: str | list[str]) -> list[str]:
+        """Parse Clerk authorized parties from comma-separated string or list."""
+        if isinstance(v, str):
+            if not v:
+                return []
+            return [item.strip() for item in v.split(",")]
+        return v if v else []
 
     # LiveKit Integration
     LIVEKIT_API_KEY: str

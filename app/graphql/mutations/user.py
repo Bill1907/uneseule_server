@@ -48,7 +48,7 @@ class UserMutations:
         # 2. Call service
         service = UserProfileService(context.db)
         result = await service.update_profile(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             phone=input.phone,
         )
 

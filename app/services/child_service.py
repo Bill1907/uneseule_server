@@ -37,7 +37,7 @@ class ChildService:
 
     async def create_child(
         self,
-        user_id: UUID,
+        user_id: str,
         name: str,
         birth_date: date,
         gender: Optional[str] = None,
@@ -79,7 +79,7 @@ class ChildService:
 
     async def update_child(
         self,
-        user_id: UUID,
+        user_id: str,
         child_id: UUID,
         name: Optional[str] = None,
         birth_date: Optional[date] = None,
@@ -129,7 +129,7 @@ class ChildService:
 
     async def delete_child(
         self,
-        user_id: UUID,
+        user_id: str,
         child_id: UUID,
     ) -> ChildResult:
         """

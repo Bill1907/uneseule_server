@@ -34,11 +34,11 @@ class Child(Base, TimestampMixin):
 
     # Foreign keys
     user_id = Column(
-        UUID(as_uuid=True),
+        String(255),
         ForeignKey("user_profiles.user_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="Neon Auth user ID reference",
+        comment="Clerk user ID reference",
     )
 
     # Profile fields

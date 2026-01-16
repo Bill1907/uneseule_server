@@ -69,7 +69,7 @@ class DeviceMutations:
         # 2. Call service
         service = DeviceService(context.db)
         result = await service.register_and_pair(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             serial_number=input.serial_number,
             device_secret=input.device_secret,
             device_type=input.device_type,
@@ -120,7 +120,7 @@ class DeviceMutations:
         # 2. Call service
         service = DeviceService(context.db)
         result = await service.unpair_by_id(
-            user_id=UUID(context.user_id),
+            user_id=context.user_id,
             device_id=UUID(device_id),
         )
 

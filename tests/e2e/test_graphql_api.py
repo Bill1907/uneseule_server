@@ -135,26 +135,49 @@ class TestMeQuery:
                 email
                 name
                 phone
-                isActive
-                emailVerified
             }
         }
         """
 
-        user_id = str(mock_user.id)
+        user_id = "user_2NNEqL2nrIRdJ194ndJqAHwEfxC"
+
+        # Create mock profile for UserProfileService
+        mock_profile = MagicMock()
+        mock_profile.user_id = user_id
+        mock_profile.phone = "010-1234-5678"
+        mock_profile.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        mock_profile.updated_at = None
+        mock_profile.children = []
+        mock_profile.subscription = None
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth, patch(
+            "app.graphql.queries.user.UserProfileService"
+        ) as MockProfileService:
             # Setup JWT verification
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            mock_clerk_auth.verify_token = AsyncMock(
+                return_value={
+                    "sub": user_id,
+                    "email": "test@example.com",
+                    "first_name": "테스트",
+                    "last_name": "유저",
+                }
+            )
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
+            mock_clerk_auth.get_user_email_from_payload.return_value = "test@example.com"
+            mock_clerk_auth.get_user_name_from_payload.return_value = "테스트 유저"
+
+            # Setup UserProfileService mock
+            from app.services.user_profile_service import UserProfileResult
+            mock_service_instance = MagicMock()
+            mock_service_instance.get_or_create_profile = AsyncMock(
+                return_value=UserProfileResult(success=True, profile=mock_profile)
+            )
+            MockProfileService.return_value = mock_service_instance
 
             # Setup DB session
             mock_db = AsyncMock()
-            mock_result = MagicMock()
-            mock_result.scalar_one_or_none.return_value = mock_user
-            mock_db.execute.return_value = mock_result
             MockSession.return_value = mock_db
 
             client = TestClient(app)
@@ -168,8 +191,7 @@ class TestMeQuery:
             data = response.json()
             assert data["data"]["me"] is not None
             assert data["data"]["me"]["email"] == "test@example.com"
-            assert data["data"]["me"]["name"] == "테스트유저"
-            assert data["data"]["me"]["isActive"] is True
+            assert data["data"]["me"]["name"] == "테스트 유저"
 
 
 class TestMyChildrenQuery:
@@ -240,10 +262,10 @@ class TestMyChildrenQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth:
+            mock_clerk_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -331,10 +353,10 @@ class TestMyDevicesQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth:
+            mock_clerk_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -416,10 +438,10 @@ class TestMySubscriptionQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth:
+            mock_clerk_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -479,10 +501,10 @@ class TestChildQuery:
         child_id = str(mock_child.id)
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth:
+            mock_clerk_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()
@@ -518,10 +540,10 @@ class TestChildQuery:
         user_id = str(uuid.uuid4())
 
         with patch("app.graphql.context.AsyncSessionLocal") as MockSession, patch(
-            "app.graphql.context.neon_auth"
-        ) as mock_neon_auth:
-            mock_neon_auth.verify_token = AsyncMock(return_value={"sub": user_id})
-            mock_neon_auth.get_user_id_from_payload.return_value = user_id
+            "app.graphql.context.clerk_auth"
+        ) as mock_clerk_auth:
+            mock_clerk_auth.verify_token = AsyncMock(return_value={"sub": user_id})
+            mock_clerk_auth.get_user_id_from_payload.return_value = user_id
 
             mock_db = AsyncMock()
             mock_result = MagicMock()

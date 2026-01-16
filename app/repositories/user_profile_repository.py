@@ -3,7 +3,6 @@ UserProfile repository for database operations.
 """
 
 from typing import Optional
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,14 +19,14 @@ class UserProfileRepository:
 
     async def get_by_user_id(
         self,
-        user_id: UUID,
+        user_id: str,
         include_relations: bool = False,
     ) -> Optional[UserProfile]:
         """
-        Get user profile by Neon Auth user ID.
+        Get user profile by Clerk user ID.
 
         Args:
-            user_id: Neon Auth user UUID (from JWT sub claim)
+            user_id: Clerk user ID (from JWT sub claim, e.g., user_xxx)
             include_relations: Include children and subscription
 
         Returns:
@@ -44,7 +43,7 @@ class UserProfileRepository:
 
     async def get_or_create(
         self,
-        user_id: UUID,
+        user_id: str,
         include_relations: bool = False,
     ) -> UserProfile:
         """
@@ -53,7 +52,7 @@ class UserProfileRepository:
         This is used on first login to auto-create the profile.
 
         Args:
-            user_id: Neon Auth user UUID (from JWT sub claim)
+            user_id: Clerk user ID (from JWT sub claim, e.g., user_xxx)
             include_relations: Include children and subscription
 
         Returns:

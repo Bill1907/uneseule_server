@@ -21,7 +21,7 @@ class ChildRepository:
 
     async def create(
         self,
-        user_id: UUID,
+        user_id: str,
         name: str,
         birth_date: date,
         gender: Optional[str] = None,
@@ -78,7 +78,7 @@ class ChildRepository:
     async def get_by_id_and_user(
         self,
         child_id: UUID,
-        user_id: UUID,
+        user_id: str,
         include_device: bool = False,
     ) -> Optional[Child]:
         """
@@ -86,7 +86,7 @@ class ChildRepository:
 
         Args:
             child_id: Child UUID
-            user_id: Parent user UUID
+            user_id: Clerk user ID
             include_device: Include related device
 
         Returns:
@@ -148,14 +148,14 @@ class ChildRepository:
 
     async def get_all_by_user(
         self,
-        user_id: UUID,
+        user_id: str,
         include_device: bool = False,
     ) -> list[Child]:
         """
         Get all active children for a user.
 
         Args:
-            user_id: Parent user UUID
+            user_id: Clerk user ID
             include_device: Include related devices
 
         Returns:

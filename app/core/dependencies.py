@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.core.security import neon_auth, security
+from app.core.security import clerk_auth, security
 
 # Database engine and session factory
 engine = create_async_engine(
@@ -86,13 +86,13 @@ async def get_current_user_id(
     ],
 ) -> str:
     """
-    Dependency for getting current authenticated user ID from Neon Auth JWT.
+    Dependency for getting current authenticated user ID from Clerk JWT.
 
     Args:
         credentials: HTTP authorization credentials (Bearer token)
 
     Returns:
-        User ID from Neon Auth token payload
+        User ID from Clerk token payload (e.g., user_xxx)
 
     Raises:
         HTTPException: If token is invalid or missing
@@ -112,7 +112,7 @@ async def get_current_user_id(
         )
 
     token = credentials.credentials
-    payload = await neon_auth.verify_token(token)
+    payload = await clerk_auth.verify_token(token)
 
     if not payload:
         raise HTTPException(
@@ -121,7 +121,7 @@ async def get_current_user_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = neon_auth.get_user_id_from_payload(payload)
+    user_id = clerk_auth.get_user_id_from_payload(payload)
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -139,14 +139,14 @@ async def get_current_user_optional(
     ],
 ) -> str | None:
     """
-    Dependency for optionally getting current user ID from Neon Auth JWT.
+    Dependency for optionally getting current user ID from Clerk JWT.
     Returns None if no valid token is provided.
 
     Args:
         credentials: HTTP authorization credentials (Bearer token)
 
     Returns:
-        User ID from token payload or None
+        User ID from token payload or None (e.g., user_xxx)
 
     Example:
         @router.get("/public-or-private")
@@ -162,12 +162,12 @@ async def get_current_user_optional(
         return None
 
     token = credentials.credentials
-    payload = await neon_auth.verify_token(token)
+    payload = await clerk_auth.verify_token(token)
 
     if not payload:
         return None
 
-    return neon_auth.get_user_id_from_payload(payload)
+    return clerk_auth.get_user_id_from_payload(payload)
 
 
 # Type aliases for cleaner dependency injection

@@ -54,7 +54,7 @@ class DeviceQueries:
         query = (
             select(Device)
             .join(Child, Device.child_id == Child.id)
-            .where(Child.user_id == UUID(context.user_id), Device.is_active == True)
+            .where(Child.user_id == context.user_id, Device.is_active == True)
             .options(selectinload(Device.child))
         )
         result = await context.db.execute(query)
@@ -75,7 +75,7 @@ class DeviceQueries:
             .join(Child, Device.child_id == Child.id)
             .where(
                 Device.id == UUID(id),
-                Child.user_id == UUID(context.user_id),
+                Child.user_id == context.user_id,
             )
             .options(selectinload(Device.child))
         )

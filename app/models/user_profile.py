@@ -1,12 +1,11 @@
 """
 UserProfile model for extended user profile data.
 
-Stores additional profile information for Neon Auth users.
-The user_id references neon_auth.user.id (from JWT sub claim).
+Stores additional profile information for Clerk users.
+The user_id is the Clerk user ID (from JWT sub claim, e.g., user_xxx).
 """
 
 from sqlalchemy import Column, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base, TimestampMixin
@@ -14,19 +13,19 @@ from app.models.base import Base, TimestampMixin
 
 class UserProfile(Base, TimestampMixin):
     """
-    Extended profile data for Neon Auth users.
+    Extended profile data for Clerk users.
 
-    This table stores additional profile fields that are not managed by Neon Auth.
-    The user_id is the same as neon_auth.user.id (extracted from JWT sub claim).
+    This table stores additional profile fields that are not managed by Clerk.
+    The user_id is the same as Clerk user ID (extracted from JWT sub claim).
     """
 
     __tablename__ = "user_profiles"
 
-    # Primary key (same as neon_auth.user.id)
+    # Primary key (Clerk user ID, e.g., user_xxx)
     user_id = Column(
-        UUID(as_uuid=True),
+        String(255),
         primary_key=True,
-        comment="Neon Auth user ID (from JWT sub claim)",
+        comment="Clerk user ID (from JWT sub claim, e.g., user_xxx)",
     )
 
     # Profile fields
