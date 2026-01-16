@@ -8,7 +8,7 @@ UserProfileService unit tests.
 
 === update_profile ===
 1. 정상: phone 업데이트 성공
-2. 실패: 프로필 없음 -> PROFILE_NOT_FOUND
+2. 정상: 프로필 없으면 자동 생성 후 업데이트
 """
 
 import uuid
@@ -118,19 +118,39 @@ class TestUpdateProfile:
                 assert result.profile.phone == "010-9999-8888"
 
     @pytest.mark.asyncio
-    async def test_update_profile_not_found(self, mock_db_session, sample_profile):
-        """프로필 없음 실패."""
+    async def test_update_creates_profile_if_not_exists(self, mock_db_session):
+        """프로필 없으면 자동 생성 후 업데이트."""
         service = UserProfileService(mock_db_session)
+        new_user_id = "user_new123"
 
         with patch.object(
             service.profile_repo, "get_by_user_id", new_callable=AsyncMock
         ) as mock_get:
             mock_get.return_value = None
 
-            result = await service.update_profile(
-                user_id=sample_profile.user_id,
-                phone="010-9999-8888",
-            )
+            new_profile = MagicMock(spec=UserProfile)
+            new_profile.user_id = new_user_id
+            new_profile.phone = None
 
-            assert result.success is False
-            assert result.error_code == "PROFILE_NOT_FOUND"
+            with patch.object(
+                service.profile_repo, "get_or_create", new_callable=AsyncMock
+            ) as mock_create:
+                mock_create.return_value = new_profile
+
+                updated_profile = MagicMock(spec=UserProfile)
+                updated_profile.user_id = new_user_id
+                updated_profile.phone = "010-1234-5678"
+
+                with patch.object(
+                    service.profile_repo, "update", new_callable=AsyncMock
+                ) as mock_update:
+                    mock_update.return_value = updated_profile
+
+                    result = await service.update_profile(
+                        user_id=new_user_id,
+                        phone="010-1234-5678",
+                    )
+
+                    mock_create.assert_called_once_with(user_id=new_user_id)
+                    assert result.success is True
+                    assert result.profile.phone == "010-1234-5678"

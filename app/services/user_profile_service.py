@@ -65,6 +65,8 @@ class UserProfileService:
         """
         Update user profile information.
 
+        If profile doesn't exist, creates one first.
+
         Args:
             user_id: Clerk user ID (e.g., user_xxx)
             phone: New phone (optional)
@@ -72,14 +74,10 @@ class UserProfileService:
         Returns:
             UserProfileResult with updated profile on success
         """
-        # 1. Get profile
+        # 1. Get or create profile
         profile = await self.profile_repo.get_by_user_id(user_id)
         if not profile:
-            return UserProfileResult(
-                success=False,
-                error_code="PROFILE_NOT_FOUND",
-                error_message="User profile not found",
-            )
+            profile = await self.profile_repo.get_or_create(user_id=user_id)
 
         # 2. Update profile
         profile = await self.profile_repo.update(
