@@ -46,7 +46,8 @@ class TestGraphQLIntrospection:
         }
         """
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",
@@ -72,7 +73,8 @@ class TestGraphQLIntrospection:
         """Test simple hello query."""
         query = "{ hello }"
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",
@@ -115,7 +117,8 @@ class TestMeQuery:
         }
         """
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",
@@ -235,7 +238,8 @@ class TestMyChildrenQuery:
         }
         """
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",
@@ -323,7 +327,8 @@ class TestMyDevicesQuery:
         }
         """
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",
@@ -410,7 +415,8 @@ class TestMySubscriptionQuery:
         }
         """
 
-        with patch("app.graphql.context.AsyncSessionLocal"):
+        mock_db = AsyncMock()
+        with patch("app.graphql.context.AsyncSessionLocal", return_value=mock_db):
             client = TestClient(app)
             response = client.post(
                 "/graphql",

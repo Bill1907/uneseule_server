@@ -6,7 +6,11 @@ Combines all queries, mutations, and subscriptions.
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 
-from app.graphql.context import GraphQLContext, get_graphql_context
+from app.graphql.context import (
+    DatabaseSessionExtension,
+    GraphQLContext,
+    get_graphql_context,
+)
 from app.graphql.mutations.child import ChildMutations
 from app.graphql.mutations.device import DeviceMutations
 from app.graphql.mutations.user import UserMutations
@@ -47,11 +51,12 @@ class Mutation(DeviceMutations, ChildMutations, UserMutations):
 #     pass
 
 
-# Create Strawberry schema
+# Create Strawberry schema with database session lifecycle extension
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
     # subscription=Subscription,  # Uncomment when subscriptions are ready
+    extensions=[DatabaseSessionExtension],
 )
 
 
